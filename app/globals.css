@@ -143,6 +143,8 @@ img {
 }
 
 .hero-copy {
+  position: relative;
+  z-index: 3;
   display: flex;
   flex-direction: column;
   align-items: center;
@@ -242,12 +244,14 @@ img {
 
 .hero-stage {
   position: relative;
+  z-index: 1;
   min-height: 580px;
   margin-top: 18px;
 }
 
 .stage-ribbon {
   position: absolute;
+  z-index: 0;
   left: 50%;
   width: 210px;
   border-radius: 999px;
@@ -270,6 +274,7 @@ img {
 .floating-photo,
 .poster-card {
   position: absolute;
+  z-index: 1;
   overflow: hidden;
   border: 10px solid #fff;
   border-radius: 26px;
@@ -278,26 +283,8 @@ img {
 }
 
 .floating-photo img,
-.poster-card img,
-.trip-thumb img {
+.poster-card img {
   object-fit: cover;
-}
-
-.floating-photo span,
-.poster-card span {
-  position: absolute;
-  top: 16px;
-  right: 16px;
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 14px;
-  border-radius: 999px;
-  background: rgba(255, 255, 255, 0.95);
-  color: var(--accent-deep);
-  font-size: 0.88rem;
-  font-weight: 700;
-  box-shadow: 0 10px 22px rgba(28, 24, 72, 0.12);
 }
 
 .floating-photo-left {
@@ -305,7 +292,8 @@ img {
   bottom: 34px;
   width: 250px;
   height: 265px;
-  transform: rotate(-4deg);
+  z-index: 2;
+  transform: rotate(-6deg);
 }
 
 .floating-photo-right {
@@ -313,7 +301,8 @@ img {
   bottom: 42px;
   width: 262px;
   height: 250px;
-  transform: rotate(5deg);
+  z-index: 3;
+  transform: rotate(6deg);
 }
 
 .floating-photo-city {
@@ -321,6 +310,7 @@ img {
   top: 86px;
   width: 196px;
   height: 130px;
+  z-index: 5;
   transform: rotate(-8deg);
 }
 
@@ -332,164 +322,15 @@ img {
 .poster-left {
   left: 30px;
   bottom: 136px;
+  z-index: 4;
   transform: rotate(-7deg);
 }
 
 .poster-right {
   right: 34px;
   bottom: 144px;
+  z-index: 4;
   transform: rotate(8deg);
-}
-
-.phone-shell {
-  position: absolute;
-  left: 50%;
-  bottom: -180px;
-  width: 332px;
-  padding: 10px;
-  border-radius: 42px;
-  transform: translateX(-50%);
-  background: #111;
-  box-shadow: 0 24px 80px rgba(27, 21, 83, 0.26);
-}
-
-.phone-top {
-  width: 110px;
-  height: 24px;
-  margin: 0 auto 8px;
-  border-radius: 999px;
-  background: #0a0a0a;
-}
-
-.phone-screen {
-  overflow: hidden;
-  padding: 18px;
-  border-radius: 32px;
-  background: linear-gradient(180deg, #ffffff 0%, #fbf8ff 100%);
-}
-
-.phone-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 14px;
-}
-
-.mini-logo {
-  display: inline-block;
-  color: #5e67e7;
-  font-size: 1.15rem;
-  font-weight: 800;
-  letter-spacing: -0.06em;
-}
-
-.phone-header strong {
-  display: block;
-  margin-top: 10px;
-  color: var(--text);
-  font-size: 1.9rem;
-  line-height: 1;
-  letter-spacing: -0.05em;
-}
-
-.live-pill {
-  display: inline-flex;
-  align-items: center;
-  min-height: 34px;
-  padding: 0 12px;
-  border: 1px solid rgba(110, 119, 255, 0.18);
-  border-radius: 12px;
-  background: #fff;
-  color: var(--muted);
-  font-size: 0.8rem;
-  font-weight: 700;
-}
-
-.phone-cta-card {
-  display: grid;
-  grid-template-columns: 1fr auto;
-  gap: 12px;
-  margin-top: 18px;
-  padding: 16px;
-  border: 1px dashed rgba(110, 119, 255, 0.18);
-  border-radius: 22px;
-  background: #fff;
-}
-
-.phone-cta-card strong,
-.trip-copy strong {
-  color: var(--text);
-  font-size: 1rem;
-}
-
-.phone-cta-card p,
-.trip-copy p {
-  margin: 8px 0 0;
-  color: var(--muted);
-  font-size: 0.84rem;
-  line-height: 1.45;
-}
-
-.phone-cta-card button {
-  align-self: center;
-  min-width: 44px;
-  min-height: 44px;
-  border: 0;
-  border-radius: 16px;
-  background: #f0efff;
-  color: #5e67e7;
-  font-size: 0.76rem;
-  font-weight: 800;
-}
-
-.trip-card {
-  overflow: hidden;
-  margin-top: 16px;
-  border-radius: 24px;
-  background: #fff;
-  box-shadow: 0 16px 30px rgba(48, 50, 95, 0.1);
-}
-
-.trip-thumb {
-  position: relative;
-  width: 100%;
-  height: 190px;
-}
-
-.trip-copy {
-  padding: 14px 16px 16px;
-}
-
-.trip-copy span {
-  color: #8d8aac;
-  font-size: 0.68rem;
-  font-weight: 800;
-  letter-spacing: 0.14em;
-}
-
-.phone-footer-grid {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 10px;
-  margin-top: 14px;
-}
-
-.phone-footer-grid div {
-  padding: 12px 14px;
-  border-radius: 18px;
-  background: #fff;
-}
-
-.phone-footer-grid span {
-  display: block;
-  color: #9d98af;
-  font-size: 0.72rem;
-}
-
-.phone-footer-grid strong {
-  display: block;
-  margin-top: 8px;
-  color: var(--text);
 }
 
 @media (max-width: 1120px) {
@@ -498,7 +339,8 @@ img {
   }
 
   .hero-stage {
-    min-height: 700px;
+    margin-top: -34px;
+    min-height: 560px;
   }
 
   .floating-photo-left {
@@ -530,43 +372,57 @@ img {
   }
 
   .hero-stage {
-    min-height: 900px;
+    margin-top: -6px;
+    min-height: 540px;
   }
 
-  .phone-shell {
-    width: min(332px, calc(100vw - 42px));
-  }
-
-  .floating-photo-city,
-  .poster-left,
-  .poster-right {
+  .stage-ribbon {
     display: none;
   }
 
   .floating-photo-left,
   .floating-photo-right {
-    width: 210px;
-    height: 220px;
+    width: 208px;
+    height: 222px;
   }
 
   .floating-photo-left {
-    left: 6px;
-    bottom: 300px;
+    top: 186px;
+    bottom: auto;
+    left: -2px;
   }
 
   .floating-photo-right {
-    right: 6px;
-    bottom: 240px;
+    top: 214px;
+    bottom: auto;
+    right: 2px;
   }
 
-  .ribbon-left {
-    bottom: 200px;
-    transform: translateX(-125%) rotate(26deg);
+  .floating-photo-city {
+    top: 46px;
+    right: 50%;
+    width: 162px;
+    height: 106px;
+    transform: translateX(50%) rotate(-6deg);
   }
 
-  .ribbon-right {
-    bottom: 140px;
-    transform: translateX(28%) rotate(24deg);
+  .poster-card {
+    width: 108px;
+    height: 150px;
+  }
+
+  .poster-left {
+    top: 120px;
+    bottom: auto;
+    left: 18px;
+    transform: rotate(-10deg);
+  }
+
+  .poster-right {
+    top: 144px;
+    bottom: auto;
+    right: 18px;
+    transform: rotate(10deg);
   }
 }
 
@@ -596,33 +452,49 @@ img {
   }
 
   .hero-stage {
-    min-height: 820px;
+    margin-top: -86px;
+    min-height: 520px;
   }
 
   .floating-photo-left,
   .floating-photo-right {
-    width: 170px;
-    height: 180px;
+    width: 194px;
+    height: 206px;
   }
 
   .floating-photo-left {
-    bottom: 280px;
+    top: 116px;
+    left: -10px;
+    bottom: auto;
   }
 
   .floating-photo-right {
-    bottom: 238px;
+    top: 134px;
+    right: -6px;
+    bottom: auto;
   }
 
-  .phone-screen {
-    padding: 16px;
+  .floating-photo-city {
+    top: 76px;
+    width: 156px;
+    height: 102px;
   }
 
-  .phone-header strong {
-    font-size: 1.55rem;
+  .poster-card {
+    width: 104px;
+    height: 144px;
+    border-width: 8px;
+    border-radius: 20px;
   }
 
-  .phone-cta-card {
-    grid-template-columns: 1fr;
+  .poster-left {
+    top: 118px;
+    left: -48px;
+  }
+
+  .poster-right {
+    top: 134px;
+    right: -48px;
   }
 }
 
