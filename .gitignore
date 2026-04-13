@@ -1,8 +1,14 @@
 .next
 node_modules
 npm-debug.log*
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
 .DS_Store
 .playwright-mcp
+AGENT.md
 current-landing.png
 redesigned-landing.png
 redesigned-landing-2.png
@@ -15,5 +21,6 @@ decor4.png
 decor5.png
 first-screen-hero.png
 phone-lowered.png
+mobile-*.png
 public/first_page.png
 ref/

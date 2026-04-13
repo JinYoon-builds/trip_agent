@@ -4,6 +4,14 @@ import Link from "next/link";
 import { useEffect, useMemo, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import {
+  createSurveySubmissionId,
+  saveSurveySubmission,
+} from "../../lib/survey-local-storage";
+import { createRemoteSubmission } from "../../lib/submission-client";
+
+const DEFAULT_PAYMENT_DISPLAY_LABEL = "₩200,000";
+
 const surveyContent = {
   ko: {
     brand: "tripagent",
@@ -16,8 +24,13 @@ const surveyContent = {
     progressLabel: "진행률",
     summaryTitle: "여행 프로필 요약",
     summaryFallback: "미정",
+    summaryContactLabel: "연락처 이메일",
+    summaryDatesLabel: "여행 기간",
+    summaryCompanionLabel: "동행 구성",
+    summaryStyleLabel: "여행 스타일",
     summaryItems: [
       { label: "목적지", fieldId: "destination" },
+      { label: "연락처", fieldId: "contactEmail" },
       { label: "동행", fieldId: "companionType" },
       { label: "예산", fieldId: "dailyBudget" },
       { label: "핵심 관심사", fieldId: "travelPurpose", extraFieldId: "travelPurposeCustom" },
@@ -27,6 +40,10 @@ const surveyContent = {
     previous: "이전",
     next: "다음 단계",
     finish: "설문 완료",
+    submitting: "저장 중...",
+    submitError:
+      "임시 저장 중 문제가 발생했습니다. 브라우저 저장 공간을 확인한 뒤 다시 시도해 주세요.",
+    emailRequiredError: "연락받을 이메일 주소를 올바르게 입력해 주세요.",
     selectionCount: "선택",
     maxSelectionText: (count) => `최대 ${count}개까지 선택 가능`,
     arrivalLabel: "도착 일시",
@@ -44,6 +61,13 @@ const surveyContent = {
             label: "여행 목적지는 어디인가요?",
             placeholder: "도시 / 지역 선택",
             suggestionsKey: "destinationSuggestions",
+          },
+          {
+            id: "contactEmail",
+            kind: "text",
+            inputType: "email",
+            label: "연락받을 이메일 주소를 입력해 주세요",
+            placeholder: "name@example.com",
           },
           {
             id: "travelDates",
@@ -282,8 +306,13 @@ const surveyContent = {
     progressLabel: "进度",
     summaryTitle: "旅行画像摘要",
     summaryFallback: "待填写",
+    summaryContactLabel: "联系邮箱",
+    summaryDatesLabel: "旅行期间",
+    summaryCompanionLabel: "同行构成",
+    summaryStyleLabel: "旅行风格",
     summaryItems: [
       { label: "目的地", fieldId: "destination" },
+      { label: "联系邮箱", fieldId: "contactEmail" },
       { label: "同行", fieldId: "companionType" },
       { label: "预算", fieldId: "dailyBudget" },
       { label: "核心兴趣", fieldId: "travelPurpose", extraFieldId: "travelPurposeCustom" },
@@ -293,6 +322,10 @@ const surveyContent = {
     previous: "上一步",
     next: "下一步",
     finish: "完成问卷",
+    submitting: "保存中...",
+    submitError:
+      "临时保存时发生问题。请检查浏览器本地存储是否可用，然后重试。",
+    emailRequiredError: "请输入正确的联系邮箱地址。",
     selectionCount: "已选",
     maxSelectionText: (count) => `最多可选择 ${count} 项`,
     arrivalLabel: "到达时间",
@@ -310,6 +343,13 @@ const surveyContent = {
             label: "旅行目的地是哪里？",
             placeholder: "城市 / 地区选择",
             suggestionsKey: "destinationSuggestions",
+          },
+          {
+            id: "contactEmail",
+            kind: "text",
+            inputType: "email",
+            label: "请输入可联系到你的邮箱地址",
+            placeholder: "name@example.com",
           },
           {
             id: "travelDates",
@@ -575,6 +615,14 @@ function getFieldLabelByValue(field, value) {
   return field.options?.find((option) => option.value === value)?.label ?? value;
 }
 
+function formatDateTimeValue(value) {
+  if (typeof value !== "string" || !value.trim()) {
+    return "";
+  }
+
+  return value.replace("T", " ");
+}
+
 function formatSummaryValue({ field, answers, fallback, extraFieldId }) {
   if (!field) {
     return fallback;
@@ -599,7 +647,9 @@ function formatSummaryValue({ field, answers, fallback, extraFieldId }) {
     const start = answers[field.startId];
     const end = answers[field.endId];
 
-    return start && end ? `${start} - ${end}` : fallback;
+    return start && end
+      ? `${formatDateTimeValue(start)} - ${formatDateTimeValue(end)}`
+      : fallback;
   }
 
   if (typeof answers[field.id] === "string" && answers[field.id].trim()) {
@@ -607,6 +657,26 @@ function formatSummaryValue({ field, answers, fallback, extraFieldId }) {
   }
 
   return fallback;
+}
+
+function joinSummaryValues(values, fallback) {
+  const filteredValues = values.filter(
+    (value) => typeof value === "string" && value.trim(),
+  );
+
+  return filteredValues.length > 0 ? filteredValues.join(" · ") : fallback;
+}
+
+function isValidEmail(value) {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value);
+}
+
+function shouldFallBackToLocalSave(error) {
+  if (typeof error?.status === "number") {
+    return error.status === 503;
+  }
+
+  return error instanceof TypeError;
 }
 
 function SurveyField({
@@ -732,7 +802,7 @@ function SurveyField({
         min={field.kind === "number" ? 1 : undefined}
         onChange={(event) => onTextChange(field.id, event.target.value)}
         placeholder={field.placeholder}
-        type={field.kind === "number" ? "number" : "text"}
+        type={field.kind === "number" ? "number" : field.inputType ?? "text"}
         value={fieldValue ?? ""}
       />
       {datalistId ? (
@@ -752,6 +822,8 @@ export default function SurveyClient({ initialLanguage }) {
   const [language, setLanguage] = useState(initialLanguage);
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [answers, setAnswers] = useState({});
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitError, setSubmitError] = useState("");
 
   useEffect(() => {
     setLanguage(initialLanguage);
@@ -786,6 +858,7 @@ export default function SurveyClient({ initialLanguage }) {
   };
 
   const handleTextChange = (fieldId, value) => {
+    setSubmitError("");
     setAnswers((prev) => ({
       ...prev,
       [fieldId]: value,
@@ -793,6 +866,7 @@ export default function SurveyClient({ initialLanguage }) {
   };
 
   const handleSingleChange = (fieldId, value) => {
+    setSubmitError("");
     setAnswers((prev) => ({
       ...prev,
       [fieldId]: value,
@@ -800,6 +874,7 @@ export default function SurveyClient({ initialLanguage }) {
   };
 
   const handleMultiToggle = (fieldId, value, maxSelections) => {
+    setSubmitError("");
     setAnswers((prev) => {
       const currentValues = Array.isArray(prev[fieldId]) ? prev[fieldId] : [];
 
@@ -819,6 +894,145 @@ export default function SurveyClient({ initialLanguage }) {
         [fieldId]: [...currentValues, value],
       };
     });
+  };
+
+  const buildSubmissionSummary = () => {
+    const destination = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("destination"),
+    });
+    const contactEmail = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("contactEmail"),
+    });
+    const travelDates = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("travelDates"),
+    });
+    const companionType = formatSummaryValue({
+      answers,
+      fallback: "",
+      field: fieldMap.get("companionType"),
+    });
+    const partySize =
+      typeof answers.partySize === "string" && answers.partySize.trim()
+        ? `${answers.partySize.trim()}${language === "zh" ? " 人" : "명"}`
+        : "";
+    const budget = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("dailyBudget"),
+    });
+    const purpose = formatSummaryValue({
+      answers,
+      extraFieldId: "travelPurposeCustom",
+      fallback: content.summaryFallback,
+      field: fieldMap.get("travelPurpose"),
+    });
+    const scheduleDensity = formatSummaryValue({
+      answers,
+      fallback: "",
+      field: fieldMap.get("scheduleDensity"),
+    });
+    const planningFreedom = formatSummaryValue({
+      answers,
+      fallback: "",
+      field: fieldMap.get("planningFreedom"),
+    });
+
+    return [
+      { label: content.summaryItems[0].label, value: destination },
+      { label: content.summaryContactLabel, value: contactEmail },
+      {
+        label: content.summaryCompanionLabel,
+        value: joinSummaryValues(
+          [companionType, partySize],
+          content.summaryFallback,
+        ),
+      },
+      { label: content.summaryDatesLabel, value: travelDates },
+      { label: content.summaryItems[3].label, value: budget },
+      { label: content.summaryItems[4].label, value: purpose },
+      {
+        label: content.summaryStyleLabel,
+        value: joinSummaryValues(
+          [scheduleDensity, planningFreedom],
+          content.summaryFallback,
+        ),
+      },
+    ];
+  };
+
+  const handleSubmit = async () => {
+    const contactEmail =
+      typeof answers.contactEmail === "string" ? answers.contactEmail.trim() : "";
+
+    if (!isValidEmail(contactEmail)) {
+      setSubmitError(content.emailRequiredError);
+      return;
+    }
+
+    setIsSubmitting(true);
+    setSubmitError("");
+
+    try {
+      const submissionPayload = {
+        language,
+        contactEmail,
+        answers: {
+          ...answers,
+        },
+        summary: buildSubmissionSummary(),
+      };
+      let submission = null;
+
+      try {
+        submission = await createRemoteSubmission(submissionPayload);
+      } catch (error) {
+        if (!shouldFallBackToLocalSave(error)) {
+          throw error;
+        }
+      }
+
+      if (submission?.id) {
+        saveSurveySubmission({
+          ...submission,
+          storageMode: "server",
+        });
+        router.push(`/survey/complete?id=${submission.id}&lang=${language}`);
+        return;
+      }
+
+      const submissionId = createSurveySubmissionId();
+      const localSubmission = {
+        id: submissionId,
+        language,
+        contactEmail,
+        answers: {
+          ...answers,
+          contactEmail,
+        },
+        summary: submissionPayload.summary,
+        submittedAt: new Date().toISOString(),
+        paymentDisplayLabel: DEFAULT_PAYMENT_DISPLAY_LABEL,
+        paymentStatus: "pending_payment",
+        storageMode: "local",
+      };
+      const didSave = saveSurveySubmission(localSubmission);
+
+      if (!didSave) {
+        throw new Error("Failed to save submission locally.");
+      }
+
+      router.push(`/survey/complete?id=${submissionId}&lang=${language}`);
+    } catch (error) {
+      console.error(error);
+      setSubmitError(content.submitError);
+      setIsSubmitting(false);
+    }
   };
 
   return (
@@ -977,7 +1191,7 @@ export default function SurveyClient({ initialLanguage }) {
           <div className="survey-main-actions">
             <button
               className="survey-secondary-button"
-              disabled={currentStepIndex === 0}
+              disabled={currentStepIndex === 0 || isSubmitting}
               onClick={() => setCurrentStepIndex((prev) => Math.max(0, prev - 1))}
               type="button"
             >
@@ -985,12 +1199,25 @@ export default function SurveyClient({ initialLanguage }) {
             </button>
             <button
               className="survey-primary-button"
-              onClick={() => setCurrentStepIndex((prev) => Math.min(steps.length - 1, prev + 1))}
+              disabled={isSubmitting}
+              onClick={
+                currentStepIndex === steps.length - 1
+                  ? handleSubmit
+                  : () =>
+                      setCurrentStepIndex((prev) =>
+                        Math.min(steps.length - 1, prev + 1),
+                      )
+              }
               type="button"
             >
-              {currentStepIndex === steps.length - 1 ? content.finish : content.next}
+              {isSubmitting
+                ? content.submitting
+                : currentStepIndex === steps.length - 1
+                  ? content.finish
+                  : content.next}
             </button>
           </div>
+          {submitError ? <p className="survey-submit-error">{submitError}</p> : null}
         </div>
       </section>
     </main>
