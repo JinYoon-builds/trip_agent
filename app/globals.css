@@ -849,6 +849,118 @@ img {
   gap: 12px;
 }
 
+.survey-slider-shell {
+  display: grid;
+  gap: 14px;
+}
+
+.survey-slider-value {
+  padding: 18px 20px;
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(240, 238, 255, 0.96), rgba(249, 247, 255, 0.92));
+}
+
+.survey-slider-value strong {
+  display: block;
+  color: var(--accent-deep);
+  font-family: var(--font-display);
+  font-size: clamp(1.2rem, 3vw, 1.6rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.survey-slider-value span {
+  display: block;
+  margin-top: 8px;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.survey-slider-value-placeholder strong {
+  color: #7f7aa7;
+}
+
+.survey-slider-control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  height: 30px;
+}
+
+.survey-slider-track,
+.survey-slider-track-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  height: 10px;
+  border-radius: 999px;
+}
+
+.survey-slider-track {
+  background: rgba(29, 27, 79, 0.1);
+}
+
+.survey-slider-track-fill {
+  right: auto;
+  background: linear-gradient(90deg, #6e77ff, #9a84ff);
+  box-shadow: 0 10px 20px rgba(110, 119, 255, 0.2);
+}
+
+.survey-slider-input {
+  position: relative;
+  z-index: 1;
+  width: 100%;
+  height: 30px;
+  margin: 0;
+  appearance: none;
+  background: transparent;
+  cursor: pointer;
+}
+
+.survey-slider-input:focus {
+  outline: none;
+}
+
+.survey-slider-input::-webkit-slider-runnable-track {
+  height: 30px;
+  background: transparent;
+}
+
+.survey-slider-input::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  width: 24px;
+  height: 24px;
+  margin-top: 3px;
+  border: 2px solid #5c63df;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 10px 18px rgba(28, 24, 72, 0.14);
+}
+
+.survey-slider-input::-moz-range-track {
+  height: 30px;
+  background: transparent;
+}
+
+.survey-slider-input::-moz-range-thumb {
+  width: 24px;
+  height: 24px;
+  border: 2px solid #5c63df;
+  border-radius: 999px;
+  background: #ffffff;
+  box-shadow: 0 10px 18px rgba(28, 24, 72, 0.14);
+}
+
+.survey-slider-scale {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  color: var(--muted);
+  font-size: 0.84rem;
+  font-weight: 700;
+}
+
 .survey-subfield {
   display: grid;
   gap: 10px;

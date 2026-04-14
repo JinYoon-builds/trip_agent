@@ -68,7 +68,7 @@ function loadPayPalSdk({ clientId, currency, locale }) {
 
 const completionContent = {
   en: {
-    brand: "tripagent",
+    brand: "lie-unnie",
     back: "Back to home",
     heroKicker: "Survey Complete",
     heroTitle: "You are almost done",
@@ -140,7 +140,7 @@ const completionContent = {
       "The saved server record could not be loaded, and no local browser copy was found either. Please finish the setup and try again.",
   },
   ko: {
-    brand: "tripagent",
+    brand: "lie-unnie",
     back: "랜딩으로 돌아가기",
     heroKicker: "Survey Complete",
     heroTitle: "거의 완료되었습니다",
@@ -212,7 +212,7 @@ const completionContent = {
       "현재 서버 저장본을 조회할 수 없고, 브라우저 로컬 저장본도 찾지 못했습니다. 설정을 마친 뒤 다시 시도해 주세요.",
   },
   zh: {
-    brand: "tripagent",
+    brand: "lie-unnie",
     back: "返回落地页",
     heroKicker: "Survey Complete",
     heroTitle: "快完成了",

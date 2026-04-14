@@ -12,10 +12,15 @@ import {
 import { createRemoteSubmission } from "../../lib/submission-client";
 
 const DEFAULT_PAYMENT_DISPLAY_LABEL = "₩200,000";
+const LANGUAGE_LOCALES = {
+  en: "en-US",
+  ko: "ko-KR",
+  zh: "zh-CN",
+};
 
 const surveyContent = {
   en: {
-    brand: "tripagent",
+    brand: "lie-unnie",
     back: "Back to home",
     title: "All-in-one Travel Service",
     subtitle:
@@ -23,7 +28,7 @@ const surveyContent = {
     sidebarKicker: "Travel Service",
     sidebarTitle: "Survey Progress",
     sidebarText:
-      "This survey has 3 pages. Fill in the key details so we can understand your trip clearly.",
+      "This survey has 2 pages. Fill in the key details so we can understand your trip clearly.",
     progressLabel: "Progress",
     summaryTitle: "Quick Summary",
     summaryFallback: "Not yet",
@@ -33,11 +38,12 @@ const surveyContent = {
       { label: "Destination", fieldId: "destination" },
       { label: "Travel Dates", fieldId: "travelDates" },
       { label: "Main Goals", fieldId: "mainGoals", extraFieldId: "mainGoalsOther" },
+      { label: "Daily Budget", fieldId: "dailyBudget" },
     ],
     summaryProfileLabel: "Age / Gender / MBTI",
     summaryWithLabel: "Traveling With",
     summaryStyleLabel: "Travel Style",
-    summaryBudgetLabel: "Budget",
+    summaryBudgetLabel: "Daily Budget",
     summaryPreferenceLabel: "Preference Ranking",
     summaryMustDoLabel: "Must Do",
     summaryAvoidLabel: "Avoid",
@@ -106,7 +112,7 @@ const surveyContent = {
       {
         id: "travelDetails",
         title: "Travel Details",
-        description: "What are your travel details?",
+        description: "Tell us about your trip details and approximate daily budget.",
         fields: [
           {
             id: "destination",
@@ -161,66 +167,16 @@ const surveyContent = {
             showWhen: (answers) =>
               Array.isArray(answers.mainGoals) && answers.mainGoals.includes("other"),
           },
-        ],
-      },
-      {
-        id: "travelType",
-        title: "Travel Type",
-        description: "What is your travel style like?",
-        fields: [
           {
-            id: "scheduleFeel",
-            kind: "single",
-            label: "How would you like your schedule to feel? *",
-            required: true,
-            options: [
-              { value: "relaxed", label: "Relaxed (1-2 activities/day)" },
-              { value: "balanced", label: "Balanced (3-4 activities/day)" },
-              { value: "packed", label: "Packed (as many as possible)" },
-            ],
-          },
-          {
-            id: "planningStyle",
-            kind: "single",
-            label: "What's your planning style? *",
-            required: true,
-            options: [
-              { value: "fullyPlanned", label: "Fully planned (detailed schedule)" },
-              { value: "semiPlanned", label: "Semi-planned (main structure only)" },
-              { value: "spontaneous", label: "Spontaneous (decide on the go)" },
-            ],
-          },
-          {
-            id: "budgetLevel",
-            kind: "single",
-            label: "Budget & spending *",
-            required: true,
-            options: [
-              { value: "tight", label: "Tight budget" },
-              { value: "standard", label: "Standard" },
-              { value: "premium", label: "Premium" },
-              { value: "luxury", label: "Luxury" },
-            ],
-          },
-          {
-            id: "preferenceRanking",
-            kind: "textarea",
-            label: "Preference (rank in order) *",
-            placeholder: "e.g. 1. Food/Cafes 2. Shopping 3. Culture",
-            required: true,
-          },
-          {
-            id: "mustDo",
-            kind: "textarea",
-            label: "What are things you must do during this trip? *",
-            placeholder: "Please list the must-do experiences for this trip.",
-            required: true,
-          },
-          {
-            id: "avoidDuringTrip",
-            kind: "textarea",
-            label: "What are things you want to avoid during the trip? *",
-            placeholder: "Please share what you want to avoid during the trip.",
+            id: "dailyBudget",
+            kind: "range",
+            label: "About how much is your daily budget? (in CNY) *",
+            hint: "Exact amount is not necessary. Move the bar to choose an approximate daily budget in CNY.",
+            unselectedText: "Move the bar to choose your daily budget in CNY",
+            initialValue: 800,
+            min: 200,
+            max: 3000,
+            step: 100,
             required: true,
           },
         ],
@@ -228,7 +184,7 @@ const surveyContent = {
     ],
   },
   ko: {
-    brand: "tripagent",
+    brand: "lie-unnie",
     back: "랜딩으로 돌아가기",
     title: "올인원 여행 서비스",
     subtitle:
@@ -236,7 +192,7 @@ const surveyContent = {
     sidebarKicker: "여행 서비스",
     sidebarTitle: "설문 진행 상황",
     sidebarText:
-      "설문은 3페이지로 구성되어 있습니다. 핵심 정보를 입력해 주시면 여행 성향을 더 정확히 이해할 수 있습니다.",
+      "설문은 2페이지로 구성되어 있습니다. 핵심 정보를 입력해 주시면 여행 성향을 더 정확히 이해할 수 있습니다.",
     progressLabel: "진행률",
     summaryTitle: "입력 요약",
     summaryFallback: "미입력",
@@ -246,11 +202,12 @@ const surveyContent = {
       { label: "목적지", fieldId: "destination" },
       { label: "여행 기간", fieldId: "travelDates" },
       { label: "여행 목적", fieldId: "mainGoals", extraFieldId: "mainGoalsOther" },
+      { label: "하루 예산", fieldId: "dailyBudget" },
     ],
     summaryProfileLabel: "나이 / 성별 / MBTI",
     summaryWithLabel: "동행",
     summaryStyleLabel: "여행 스타일",
-    summaryBudgetLabel: "예산",
+    summaryBudgetLabel: "하루 예산",
     summaryPreferenceLabel: "선호 순위",
     summaryMustDoLabel: "꼭 하고 싶은 것",
     summaryAvoidLabel: "피하고 싶은 것",
@@ -319,7 +276,7 @@ const surveyContent = {
       {
         id: "travelDetails",
         title: "여행 정보",
-        description: "실제 여행 일정과 목적을 알려주세요.",
+        description: "실제 여행 일정과 대략적인 하루 예산을 알려주세요.",
         fields: [
           {
             id: "destination",
@@ -374,66 +331,16 @@ const surveyContent = {
             showWhen: (answers) =>
               Array.isArray(answers.mainGoals) && answers.mainGoals.includes("other"),
           },
-        ],
-      },
-      {
-        id: "travelType",
-        title: "여행 유형",
-        description: "원하는 여행 스타일을 알려주세요.",
-        fields: [
           {
-            id: "scheduleFeel",
-            kind: "single",
-            label: "원하는 여행 일정 강도는? *",
-            required: true,
-            options: [
-              { value: "relaxed", label: "여유롭게 (하루 1-2개)" },
-              { value: "balanced", label: "적당히 (하루 3-4개)" },
-              { value: "packed", label: "빡빡하게 (최대한 많이)" },
-            ],
-          },
-          {
-            id: "planningStyle",
-            kind: "single",
-            label: "여행 계획 스타일은? *",
-            required: true,
-            options: [
-              { value: "fullyPlanned", label: "상세 계획형" },
-              { value: "semiPlanned", label: "대략 계획형" },
-              { value: "spontaneous", label: "즉흥형" },
-            ],
-          },
-          {
-            id: "budgetLevel",
-            kind: "single",
-            label: "예산 *",
-            required: true,
-            options: [
-              { value: "tight", label: "절약형" },
-              { value: "standard", label: "일반형" },
-              { value: "premium", label: "프리미엄" },
-              { value: "luxury", label: "럭셔리" },
-            ],
-          },
-          {
-            id: "preferenceRanking",
-            kind: "textarea",
-            label: "선호 순위를 적어주세요 *",
-            placeholder: "예: 1. 맛집 2. 쇼핑 3. 문화",
-            required: true,
-          },
-          {
-            id: "mustDo",
-            kind: "textarea",
-            label: "이번 여행에서 꼭 하고 싶은 것은? *",
-            placeholder: "꼭 하고 싶은 경험을 적어 주세요.",
-            required: true,
-          },
-          {
-            id: "avoidDuringTrip",
-            kind: "textarea",
-            label: "이번 여행에서 피하고 싶은 것은? *",
-            placeholder: "피하고 싶은 경험을 적어 주세요.",
+            id: "dailyBudget",
+            kind: "range",
+            label: "하루 예산은 대략 얼마인가요? (CNY 기준) *",
+            hint: "정확하지 않아도 괜찮아요. 바를 움직여 대략적인 하루 예산을 위안화 기준으로 선택해 주세요.",
+            unselectedText: "바를 움직여 하루 예산을 선택해 주세요",
+            initialValue: 800,
+            min: 200,
+            max: 3000,
+            step: 100,
             required: true,
           },
         ],
@@ -441,7 +348,7 @@ const surveyContent = {
     ],
   },
   zh: {
-    brand: "tripagent",
+    brand: "lie-unnie",
     back: "返回首页",
     title: "一站式旅行服务",
     subtitle:
@@ -449,7 +356,7 @@ const surveyContent = {
     sidebarKicker: "旅行服务",
     sidebarTitle: "问卷进度",
     sidebarText:
-      "问卷共 3 页。请填写关键信息，方便我们更准确地理解你的旅行需求。",
+      "问卷共 2 页。请填写关键信息，方便我们更准确地理解你的旅行需求。",
     progressLabel: "进度",
     summaryTitle: "快速摘要",
     summaryFallback: "待填写",
@@ -459,11 +366,12 @@ const surveyContent = {
       { label: "目的地", fieldId: "destination" },
       { label: "旅行时间", fieldId: "travelDates" },
       { label: "旅行目的", fieldId: "mainGoals", extraFieldId: "mainGoalsOther" },
+      { label: "每日预算", fieldId: "dailyBudget" },
     ],
     summaryProfileLabel: "年龄 / 性别 / MBTI",
     summaryWithLabel: "同行",
     summaryStyleLabel: "旅行风格",
-    summaryBudgetLabel: "预算",
+    summaryBudgetLabel: "每日预算",
     summaryPreferenceLabel: "偏好排序",
     summaryMustDoLabel: "一定要做的事",
     summaryAvoidLabel: "想避免的事",
@@ -532,7 +440,7 @@ const surveyContent = {
       {
         id: "travelDetails",
         title: "旅游信息",
-        description: "您的旅行信息是什么？",
+        description: "请告诉我们你的旅行信息和大致每日预算。",
         fields: [
           {
             id: "destination",
@@ -587,66 +495,16 @@ const surveyContent = {
             showWhen: (answers) =>
               Array.isArray(answers.mainGoals) && answers.mainGoals.includes("other"),
           },
-        ],
-      },
-      {
-        id: "travelType",
-        title: "旅行类型",
-        description: "您的旅行风格更偏向哪种？",
-        fields: [
           {
-            id: "scheduleFeel",
-            kind: "single",
-            label: "您希望旅行节奏是？ *",
-            required: true,
-            options: [
-              { value: "relaxed", label: "轻松（每天 1-2 个行程）" },
-              { value: "balanced", label: "适中（每天 3-4 个）" },
-              { value: "packed", label: "紧凑（尽可能多）" },
-            ],
-          },
-          {
-            id: "planningStyle",
-            kind: "single",
-            label: "您的旅行规划风格是？ *",
-            required: true,
-            options: [
-              { value: "fullyPlanned", label: "详细计划型" },
-              { value: "semiPlanned", label: "大致规划型" },
-              { value: "spontaneous", label: "随性即兴型" },
-            ],
-          },
-          {
-            id: "budgetLevel",
-            kind: "single",
-            label: "预算 *",
-            required: true,
-            options: [
-              { value: "tight", label: "经济型" },
-              { value: "standard", label: "普通" },
-              { value: "premium", label: "高端" },
-              { value: "luxury", label: "奢华" },
-            ],
-          },
-          {
-            id: "preferenceRanking",
-            kind: "textarea",
-            label: "偏好排序（请按重要性排序） *",
-            placeholder: "例如：1. 美食 2. 购物 3. 文化",
-            required: true,
-          },
-          {
-            id: "mustDo",
-            kind: "textarea",
-            label: "这次旅行中，你一定要做的事情是什么？ *",
-            placeholder: "请填写这次旅行一定要做的事情。",
-            required: true,
-          },
-          {
-            id: "avoidDuringTrip",
-            kind: "textarea",
-            label: "这次旅行中，你想要避免的事情是什么？ *",
-            placeholder: "请填写这次旅行想避免的事情。",
+            id: "dailyBudget",
+            kind: "range",
+            label: "你每天的预算大约是多少？（按人民币）*",
+            hint: "不需要非常精确。拖动滑杆，选择一个按人民币计算的大致每日预算即可。",
+            unselectedText: "拖动滑杆选择每日预算",
+            initialValue: 800,
+            min: 200,
+            max: 3000,
+            step: 100,
             required: true,
           },
         ],
@@ -670,6 +528,10 @@ function isFieldAnswered(field, answers) {
 
   if (field.kind === "datetimeRange") {
     return Boolean(answers[field.startId] && answers[field.endId]);
+  }
+
+  if (field.kind === "range") {
+    return Number.isFinite(Number(answers[field.id]));
   }
 
   return typeof answers[field.id] === "string"
@@ -699,7 +561,43 @@ function formatDateTimeValue(value) {
   return value.replace("T", " ");
 }
 
-function formatSummaryValue({ field, answers, fallback, extraFieldId }) {
+function formatBudgetAmount(value, language) {
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    return "";
+  }
+
+  const normalizedLanguage = normalizeSiteLanguage(language);
+  const locale = LANGUAGE_LOCALES[normalizedLanguage] ?? LANGUAGE_LOCALES.en;
+
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency: "CNY",
+    currencyDisplay: "code",
+    maximumFractionDigits: 0,
+  }).format(numericValue);
+}
+
+function formatDailyBudgetValue(value, language) {
+  const formattedValue = formatBudgetAmount(value, language);
+
+  if (!formattedValue) {
+    return "";
+  }
+
+  if (language === "ko") {
+    return `약 ${formattedValue} / 일`;
+  }
+
+  if (language === "zh") {
+    return `约 ${formattedValue} / 天`;
+  }
+
+  return `About ${formattedValue} / day`;
+}
+
+function formatSummaryValue({ field, answers, fallback, extraFieldId, language }) {
   if (!field) {
     return fallback;
   }
@@ -725,6 +623,12 @@ function formatSummaryValue({ field, answers, fallback, extraFieldId }) {
 
     return start && end
       ? `${formatDateTimeValue(start)} - ${formatDateTimeValue(end)}`
+      : fallback;
+  }
+
+  if (field.kind === "range") {
+    return Number.isFinite(Number(answers[field.id]))
+      ? formatDailyBudgetValue(answers[field.id], language)
       : fallback;
   }
 
@@ -841,6 +745,55 @@ function SurveyField({
           })}
         </div>
       </>
+    );
+  }
+
+  if (field.kind === "range") {
+    const hasSelectedValue = Number.isFinite(Number(fieldValue));
+    const numericValue = hasSelectedValue ? Number(fieldValue) : field.initialValue;
+    const progress = ((numericValue - field.min) / (field.max - field.min)) * 100;
+
+    return (
+      <div className="survey-slider-shell">
+        <div
+          className={
+            hasSelectedValue
+              ? "survey-slider-value"
+              : "survey-slider-value survey-slider-value-placeholder"
+          }
+        >
+          <strong>
+            {hasSelectedValue
+              ? formatDailyBudgetValue(numericValue, language)
+              : field.unselectedText}
+          </strong>
+          <span>{field.hint}</span>
+        </div>
+
+        <div className="survey-slider-control">
+          <div className="survey-slider-track" />
+          <div
+            className="survey-slider-track-fill"
+            style={{ width: `${Math.max(0, Math.min(progress, 100))}%` }}
+          />
+          <input
+            aria-label={field.label}
+            aria-valuetext={formatDailyBudgetValue(numericValue, language)}
+            className="survey-slider-input"
+            max={field.max}
+            min={field.min}
+            onChange={(event) => onTextChange(field.id, event.target.value)}
+            step={field.step}
+            type="range"
+            value={numericValue}
+          />
+        </div>
+
+        <div className="survey-slider-scale">
+          <span>{formatBudgetAmount(field.min, language)}</span>
+          <span>{`${formatBudgetAmount(field.max, language)}+`}</span>
+        </div>
+      </div>
     );
   }
 
@@ -1035,38 +988,14 @@ export default function SurveyClient({ initialLanguage }) {
       extraFieldId: "mainGoalsOther",
       fallback: content.summaryFallback,
       field: fieldMap.get("mainGoals"),
+      language,
     });
-    const scheduleFeel = formatSummaryValue({
-      answers,
-      fallback: "",
-      field: fieldMap.get("scheduleFeel"),
-    });
-    const planningStyle = formatSummaryValue({
-      answers,
-      fallback: "",
-      field: fieldMap.get("planningStyle"),
-    });
-    const budgetLevel = formatSummaryValue({
+    const dailyBudget = formatSummaryValue({
       answers,
       fallback: content.summaryFallback,
-      field: fieldMap.get("budgetLevel"),
+      field: fieldMap.get("dailyBudget"),
+      language,
     });
-    const preferenceRanking = formatSummaryValue({
-      answers,
-      fallback: content.summaryFallback,
-      field: fieldMap.get("preferenceRanking"),
-    });
-    const mustDo = formatSummaryValue({
-      answers,
-      fallback: content.summaryFallback,
-      field: fieldMap.get("mustDo"),
-    });
-    const avoidDuringTrip = formatSummaryValue({
-      answers,
-      fallback: content.summaryFallback,
-      field: fieldMap.get("avoidDuringTrip"),
-    });
-
     return [
       { label: content.summaryItems[0].label, value: fullName },
       { label: content.summaryItems[1].label, value: contactEmail },
@@ -1081,17 +1010,7 @@ export default function SurveyClient({ initialLanguage }) {
       { label: content.summaryItems[3].label, value: travelDates },
       { label: content.summaryWithLabel, value: travelCompanion },
       { label: content.summaryItems[4].label, value: mainGoals },
-      {
-        label: content.summaryStyleLabel,
-        value: joinSummaryValues(
-          [scheduleFeel, planningStyle],
-          content.summaryFallback,
-        ),
-      },
-      { label: content.summaryBudgetLabel, value: budgetLevel },
-      { label: content.summaryPreferenceLabel, value: preferenceRanking },
-      { label: content.summaryMustDoLabel, value: mustDo },
-      { label: content.summaryAvoidLabel, value: avoidDuringTrip },
+      { label: content.summaryBudgetLabel, value: dailyBudget },
     ];
   };
 
@@ -1279,6 +1198,7 @@ export default function SurveyClient({ initialLanguage }) {
                       extraFieldId: item.extraFieldId,
                       fallback: content.summaryFallback,
                       field: fieldMap.get(item.fieldId),
+                      language,
                     })}
                   </strong>
                 </div>

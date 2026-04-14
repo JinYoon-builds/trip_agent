@@ -1,7 +1,7 @@
 import "./globals.css";
 
 export const metadata = {
-  title: "Trip Agent",
+  title: "lie-unnie",
   description: "Private remote tourism guide matching service for Chinese travelers in Korea.",
 };
 
