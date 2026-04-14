@@ -6,12 +6,16 @@ import { usePathname, useRouter } from "next/navigation";
 
 import { normalizeSiteLanguage } from "../../lib/language";
 import {
+  formatPaymentDisplayLabel,
+  getGuideDatesFromAnswers,
+  getGuideDayCountFromAnswers,
+  getGuidePricingQuote,
+} from "../../lib/pricing";
+import {
   createSurveySubmissionId,
   saveSurveySubmission,
 } from "../../lib/survey-local-storage";
 import { createRemoteSubmission } from "../../lib/submission-client";
-
-const DEFAULT_PAYMENT_DISPLAY_LABEL = "₩200,000";
 const LANGUAGE_LOCALES = {
   en: "en-US",
   ko: "ko-KR",
@@ -38,6 +42,7 @@ const surveyContent = {
       { label: "Destination", fieldId: "destination" },
       { label: "Travel Dates", fieldId: "travelDates" },
       { label: "Main Goals", fieldId: "mainGoals", extraFieldId: "mainGoalsOther" },
+      { label: "Guide Days", fieldId: "guideDates" },
       { label: "Daily Budget", fieldId: "dailyBudget" },
     ],
     summaryProfileLabel: "Age / Gender / MBTI",
@@ -47,6 +52,22 @@ const surveyContent = {
     summaryPreferenceLabel: "Preference Ranking",
     summaryMustDoLabel: "Must Do",
     summaryAvoidLabel: "Avoid",
+    pricingTitle: "Guide Pricing",
+    pricingEmpty: "Select at least one guide date to see the payment amount.",
+    pricingGuideDaysLabel: "Guide Days",
+    pricingDiscountLabel: "Discount",
+    pricingTotalLabel: "Estimated Payment",
+    inlineQuoteTitle: "Estimated Quote",
+    pricingHint:
+      "Only the dates you select for a guide will be charged at checkout.",
+    pricingDiscountValue: (discountPercent) =>
+      discountPercent > 0 ? `${discountPercent}% off` : "No discount",
+    guidePricingNoticeTitle: "Guide Pricing Rules",
+    guidePricingNoticeDailyRate: (amountLabel) => `1 day: ${amountLabel}`,
+    guidePricingNoticeTwoDays: "2 days: 10% discount",
+    guidePricingNoticeThreeDays: "3+ days: 20% discount",
+    guidePricingNoticeExample: (amountLabel) => `Example: 2 days = ${amountLabel}`,
+    guidePricingNoticeFootnote: "You only pay for the dates you select for a guide.",
     arrivalLabel: "Start Date",
     departureLabel: "End Date",
     cardKicker: "Page",
@@ -130,6 +151,14 @@ const surveyContent = {
             required: true,
           },
           {
+            id: "guideDates",
+            kind: "dateMulti",
+            label: "Which dates do you want a guide for? *",
+            required: true,
+            showWhen: (answers) =>
+              isValidDateRange(answers.travelStartDate, answers.travelEndDate),
+          },
+          {
             id: "travelCompanion",
             kind: "single",
             label: "Who are you traveling with? *",
@@ -202,6 +231,7 @@ const surveyContent = {
       { label: "목적지", fieldId: "destination" },
       { label: "여행 기간", fieldId: "travelDates" },
       { label: "여행 목적", fieldId: "mainGoals", extraFieldId: "mainGoalsOther" },
+      { label: "가이드 필요 날짜", fieldId: "guideDates" },
       { label: "하루 예산", fieldId: "dailyBudget" },
     ],
     summaryProfileLabel: "나이 / 성별 / MBTI",
@@ -211,6 +241,22 @@ const surveyContent = {
     summaryPreferenceLabel: "선호 순위",
     summaryMustDoLabel: "꼭 하고 싶은 것",
     summaryAvoidLabel: "피하고 싶은 것",
+    pricingTitle: "가이드 요금",
+    pricingEmpty: "가이드가 필요한 날짜를 하나 이상 선택하면 결제 금액이 바로 표시됩니다.",
+    pricingGuideDaysLabel: "선택 일수",
+    pricingDiscountLabel: "할인",
+    pricingTotalLabel: "예상 결제 금액",
+    inlineQuoteTitle: "예상 견적",
+    pricingHint:
+      "체크아웃에서는 선택한 가이드 날짜에 대해서만 결제가 진행됩니다.",
+    pricingDiscountValue: (discountPercent) =>
+      discountPercent > 0 ? `${discountPercent}% 할인` : "할인 없음",
+    guidePricingNoticeTitle: "가이드 요금 안내",
+    guidePricingNoticeDailyRate: (amountLabel) => `1일: ${amountLabel}`,
+    guidePricingNoticeTwoDays: "2일: 10% 할인",
+    guidePricingNoticeThreeDays: "3일 이상: 20% 할인",
+    guidePricingNoticeExample: (amountLabel) => `예: 2일 선택 시 ${amountLabel}`,
+    guidePricingNoticeFootnote: "가이드가 필요한 날짜에 대해서만 결제됩니다.",
     arrivalLabel: "시작일",
     departureLabel: "종료일",
     cardKicker: "페이지",
@@ -294,6 +340,14 @@ const surveyContent = {
             required: true,
           },
           {
+            id: "guideDates",
+            kind: "dateMulti",
+            label: "가이드가 필요한 날짜를 선택해 주세요 *",
+            required: true,
+            showWhen: (answers) =>
+              isValidDateRange(answers.travelStartDate, answers.travelEndDate),
+          },
+          {
             id: "travelCompanion",
             kind: "single",
             label: "누구와 함께 여행하시나요? *",
@@ -366,6 +420,7 @@ const surveyContent = {
       { label: "目的地", fieldId: "destination" },
       { label: "旅行时间", fieldId: "travelDates" },
       { label: "旅行目的", fieldId: "mainGoals", extraFieldId: "mainGoalsOther" },
+      { label: "需要向导的日期", fieldId: "guideDates" },
       { label: "每日预算", fieldId: "dailyBudget" },
     ],
     summaryProfileLabel: "年龄 / 性别 / MBTI",
@@ -375,6 +430,22 @@ const surveyContent = {
     summaryPreferenceLabel: "偏好排序",
     summaryMustDoLabel: "一定要做的事",
     summaryAvoidLabel: "想避免的事",
+    pricingTitle: "向导费用",
+    pricingEmpty: "先选择至少一天需要向导的日期，系统就会立即显示支付金额。",
+    pricingGuideDaysLabel: "选择天数",
+    pricingDiscountLabel: "折扣",
+    pricingTotalLabel: "预计支付金额",
+    inlineQuoteTitle: "预计报价",
+    pricingHint:
+      "结账时只会按你选择需要向导的日期收费。",
+    pricingDiscountValue: (discountPercent) =>
+      discountPercent > 0 ? `${discountPercent}% 折扣` : "无折扣",
+    guidePricingNoticeTitle: "向导费用说明",
+    guidePricingNoticeDailyRate: (amountLabel) => `1 天：${amountLabel}`,
+    guidePricingNoticeTwoDays: "2 天：9 折",
+    guidePricingNoticeThreeDays: "3 天及以上：8 折",
+    guidePricingNoticeExample: (amountLabel) => `例如：2 天共 ${amountLabel}`,
+    guidePricingNoticeFootnote: "只会按你选择需要向导的日期收费。",
     arrivalLabel: "开始日期",
     departureLabel: "结束日期",
     cardKicker: "页面",
@@ -458,6 +529,14 @@ const surveyContent = {
             required: true,
           },
           {
+            id: "guideDates",
+            kind: "dateMulti",
+            label: "请选择需要向导的日期 *",
+            required: true,
+            showWhen: (answers) =>
+              isValidDateRange(answers.travelStartDate, answers.travelEndDate),
+          },
+          {
             id: "travelCompanion",
             kind: "single",
             label: "您和谁一起旅行？ *",
@@ -513,6 +592,85 @@ const surveyContent = {
   },
 };
 
+function parseDateValue(value) {
+  if (typeof value !== "string") {
+    return null;
+  }
+
+  const [year, month, day] = value.split("-").map((item) => Number(item));
+
+  if (
+    !Number.isInteger(year) ||
+    !Number.isInteger(month) ||
+    !Number.isInteger(day)
+  ) {
+    return null;
+  }
+
+  const parsedDate = new Date(Date.UTC(year, month - 1, day));
+
+  if (
+    parsedDate.getUTCFullYear() !== year ||
+    parsedDate.getUTCMonth() !== month - 1 ||
+    parsedDate.getUTCDate() !== day
+  ) {
+    return null;
+  }
+
+  return parsedDate;
+}
+
+function isValidDateRange(startValue, endValue) {
+  const startDate = parseDateValue(startValue);
+  const endDate = parseDateValue(endValue);
+
+  return Boolean(startDate && endDate && startDate <= endDate);
+}
+
+function getTravelDateValues(startValue, endValue) {
+  const startDate = parseDateValue(startValue);
+  const endDate = parseDateValue(endValue);
+
+  if (!startDate || !endDate || startDate > endDate) {
+    return [];
+  }
+
+  const values = [];
+  const cursor = new Date(startDate);
+
+  while (cursor <= endDate) {
+    values.push(cursor.toISOString().slice(0, 10));
+    cursor.setUTCDate(cursor.getUTCDate() + 1);
+  }
+
+  return values;
+}
+
+function formatTravelCalendarDate(value, language) {
+  const parsedDate = parseDateValue(value);
+
+  if (!parsedDate) {
+    return "";
+  }
+
+  const normalizedLanguage = normalizeSiteLanguage(language);
+  const locale = LANGUAGE_LOCALES[normalizedLanguage] ?? LANGUAGE_LOCALES.en;
+
+  return new Intl.DateTimeFormat(locale, {
+    month: normalizedLanguage === "en" ? "short" : "numeric",
+    day: "numeric",
+    weekday: "short",
+    timeZone: "UTC",
+  }).format(parsedDate);
+}
+
+function buildGuideDateOptions(startValue, endValue, language) {
+  return getTravelDateValues(startValue, endValue).map((value) => ({
+    value,
+    label: formatTravelCalendarDate(value, language),
+  }));
+}
+
 function isFieldVisible(field, answers) {
   if (!field.showWhen) {
     return true;
@@ -522,12 +680,12 @@ function isFieldVisible(field, answers) {
 }
 
 function isFieldAnswered(field, answers) {
-  if (field.kind === "multi") {
+  if (field.kind === "multi" || field.kind === "dateMulti") {
     return Array.isArray(answers[field.id]) && answers[field.id].length > 0;
   }
 
   if (field.kind === "datetimeRange") {
-    return Boolean(answers[field.startId] && answers[field.endId]);
+    return isValidDateRange(answers[field.startId], answers[field.endId]);
   }
 
   if (field.kind === "range") {
@@ -554,11 +712,9 @@ function getFieldLabelByValue(field, value) {
 }
 
 function formatDateTimeValue(value) {
-  if (typeof value !== "string" || !value.trim()) {
-    return "";
-  }
-
-  return value.replace("T", " ");
+  return typeof value === "string" && value.includes("T")
+    ? value.replace("T", " ")
+    : value;
 }
 
 function formatBudgetAmount(value, language) {
@@ -621,9 +777,25 @@ function formatSummaryValue({ field, answers, fallback, extraFieldId, language }
     const start = answers[field.startId];
     const end = answers[field.endId];
 
-    return start && end
-      ? `${formatDateTimeValue(start)} - ${formatDateTimeValue(end)}`
+    return isValidDateRange(start, end)
+      ? `${formatTravelCalendarDate(start, language)} - ${formatTravelCalendarDate(end, language)}`
       : fallback;
+  }
+
+  if (field.kind === "dateMulti") {
+    const selectedValues = Array.isArray(answers[field.id]) ? answers[field.id] : [];
+    const optionMap = new Map(
+      buildGuideDateOptions(
+        answers.travelStartDate,
+        answers.travelEndDate,
+        language,
+      ).map((option) => [option.value, option.label]),
+    );
+    const labels = selectedValues
+      .map((value) => optionMap.get(value))
+      .filter((value) => typeof value === "string" && value.trim().length > 0);
+
+    return labels.length > 0 ? labels.join(" · ") : fallback;
   }
 
   if (field.kind === "range") {
@@ -676,6 +848,7 @@ function findFirstMissingRequiredField(steps, answers) {
 }
 
 function SurveyField({
+  answers,
   content,
   field,
   fieldValue,
@@ -737,6 +910,44 @@ function SurveyField({
                 disabled={disabled}
                 key={option.value}
                 onClick={() => onMultiToggle(field.id, option.value, field.maxSelections)}
+                type="button"
+              >
+                {option.label}
+              </button>
+            );
+          })}
+        </div>
+      </>
+    );
+  }
+
+  if (field.kind === "dateMulti") {
+    const selectedValues = Array.isArray(fieldValue) ? fieldValue : [];
+    const dateOptions = buildGuideDateOptions(
+      answers.travelStartDate,
+      answers.travelEndDate,
+      language,
+    );
+
+    return (
+      <>
+        <div className="survey-field-meta">
+          <span>&nbsp;</span>
+          <strong>
+            {content.selectionCount} {selectedValues.length}
+          </strong>
+        </div>
+
+        <div className="survey-chip-grid">
+          {dateOptions.map((option) => {
+            const active = selectedValues.includes(option.value);
+
+            return (
+              <button
+                aria-pressed={active}
+                className={active ? "survey-chip-button active" : "survey-chip-button"}
+                key={option.value}
+                onClick={() => onMultiToggle(field.id, option.value)}
                 type="button"
               >
                 {option.label}
@@ -874,6 +1085,33 @@ export default function SurveyClient({ initialLanguage }) {
     setLanguage(normalizeSiteLanguage(initialLanguage));
   }, [initialLanguage]);
 
+  useEffect(() => {
+    setAnswers((prev) => {
+      const selectedGuideDates = Array.isArray(prev.guideDates) ? prev.guideDates : [];
+
+      if (selectedGuideDates.length === 0) {
+        return prev;
+      }
+
+      const validDateSet = new Set(
+        getTravelDateValues(prev.travelStartDate, prev.travelEndDate),
+      );
+      const nextGuideDates = selectedGuideDates.filter((value) => validDateSet.has(value));
+
+      if (
+        nextGuideDates.length === selectedGuideDates.length &&
+        nextGuideDates.every((value, index) => value === selectedGuideDates[index])
+      ) {
+        return prev;
+      }
+
+      return {
+        ...prev,
+        guideDates: nextGuideDates,
+      };
+    });
+  }, [answers.travelStartDate, answers.travelEndDate]);
+
   const content = surveyContent[language];
   const steps = content.steps;
   const currentStep = steps[currentStepIndex];
@@ -896,6 +1134,31 @@ export default function SurveyClient({ initialLanguage }) {
 
     return map;
   }, [steps]);
+  const selectedGuideDates = getGuideDatesFromAnswers(answers);
+  const selectedGuideDayCount = selectedGuideDates.length;
+  const livePricingQuote =
+    selectedGuideDayCount > 0
+      ? getGuidePricingQuote({ guideDayCount: selectedGuideDayCount })
+      : null;
+  const oneDayPricingQuote = getGuidePricingQuote({ guideDayCount: 1 });
+  const twoDayPricingQuote = getGuidePricingQuote({ guideDayCount: 2 });
+  const livePaymentDisplayLabel = livePricingQuote
+    ? formatPaymentDisplayLabel({
+        amount: livePricingQuote.totalAmount,
+        currency: livePricingQuote.currency,
+        language,
+      })
+    : "";
+  const oneDayPricingLabel = formatPaymentDisplayLabel({
+    amount: oneDayPricingQuote.totalAmount,
+    currency: oneDayPricingQuote.currency,
+    language,
+  });
+  const twoDayPricingLabel = formatPaymentDisplayLabel({
+    amount: twoDayPricingQuote.totalAmount,
+    currency: twoDayPricingQuote.currency,
+    language,
+  });
 
   const handleLanguageChange = (nextLanguage) => {
     const normalizedLanguage = normalizeSiteLanguage(nextLanguage);
@@ -947,41 +1210,49 @@ export default function SurveyClient({ initialLanguage }) {
       answers,
       fallback: content.summaryFallback,
       field: fieldMap.get("fullName"),
+      language,
     });
     const destination = formatSummaryValue({
       answers,
       fallback: content.summaryFallback,
       field: fieldMap.get("destination"),
+      language,
     });
     const contactEmail = formatSummaryValue({
       answers,
       fallback: content.summaryFallback,
       field: fieldMap.get("contactEmail"),
+      language,
     });
     const travelDates = formatSummaryValue({
       answers,
       fallback: content.summaryFallback,
       field: fieldMap.get("travelDates"),
+      language,
     });
     const age = formatSummaryValue({
       answers,
       fallback: "",
       field: fieldMap.get("age"),
+      language,
     });
     const gender = formatSummaryValue({
       answers,
       fallback: "",
       field: fieldMap.get("gender"),
+      language,
     });
     const mbti = formatSummaryValue({
       answers,
       fallback: "",
       field: fieldMap.get("mbti"),
+      language,
     });
     const travelCompanion = formatSummaryValue({
       answers,
       fallback: content.summaryFallback,
       field: fieldMap.get("travelCompanion"),
+      language,
     });
     const mainGoals = formatSummaryValue({
       answers,
@@ -996,6 +1267,13 @@ export default function SurveyClient({ initialLanguage }) {
       field: fieldMap.get("dailyBudget"),
       language,
     });
+    const guideDates = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("guideDates"),
+      language,
+    });
+
     return [
       { label: content.summaryItems[0].label, value: fullName },
       { label: content.summaryItems[1].label, value: contactEmail },
@@ -1010,6 +1288,7 @@ export default function SurveyClient({ initialLanguage }) {
       { label: content.summaryItems[3].label, value: travelDates },
       { label: content.summaryWithLabel, value: travelCompanion },
       { label: content.summaryItems[4].label, value: mainGoals },
+      { label: content.summaryItems[5].label, value: guideDates },
       { label: content.summaryBudgetLabel, value: dailyBudget },
     ];
   };
@@ -1064,6 +1343,9 @@ export default function SurveyClient({ initialLanguage }) {
       }
 
       const submissionId = createSurveySubmissionId();
+      const pricingQuote = getGuidePricingQuote({
+        guideDayCount: getGuideDayCountFromAnswers(answers),
+      });
       const localSubmission = {
         id: submissionId,
         language,
@@ -1074,7 +1356,13 @@ export default function SurveyClient({ initialLanguage }) {
         },
         summary: submissionPayload.summary,
         submittedAt: new Date().toISOString(),
-        paymentDisplayLabel: DEFAULT_PAYMENT_DISPLAY_LABEL,
+        paymentAmount: pricingQuote.totalAmount,
+        paymentCurrency: pricingQuote.currency,
+        paymentDisplayLabel: formatPaymentDisplayLabel({
+          amount: pricingQuote.totalAmount,
+          currency: pricingQuote.currency,
+          language,
+        }),
         paymentStatus: "pending_payment",
         storageMode: "local",
       };
@@ -1205,6 +1493,31 @@ export default function SurveyClient({ initialLanguage }) {
               ))}
             </div>
           </div>
+
+          <div className="survey-side-card compact">
+            <span className="survey-card-kicker">{content.pricingTitle}</span>
+            {livePricingQuote ? (
+              <div className="survey-summary-list">
+                <div className="survey-summary-row">
+                  <span>{content.pricingGuideDaysLabel}</span>
+                  <strong>{selectedGuideDayCount}</strong>
+                </div>
+                <div className="survey-summary-row">
+                  <span>{content.pricingDiscountLabel}</span>
+                  <strong>
+                    {content.pricingDiscountValue(livePricingQuote.discountPercent)}
+                  </strong>
+                </div>
+                <div className="survey-summary-row">
+                  <span>{content.pricingTotalLabel}</span>
+                  <strong>{livePaymentDisplayLabel}</strong>
+                </div>
+              </div>
+            ) : (
+              <p className="survey-pricing-empty">{content.pricingEmpty}</p>
+            )}
+            <p className="survey-pricing-hint">{content.pricingHint}</p>
+          </div>
         </aside>
 
         <div className="survey-main-card">
@@ -1239,7 +1552,28 @@ export default function SurveyClient({ initialLanguage }) {
               return (
                 <div className="survey-field-block" key={field.id}>
                   <label>{field.label}</label>
+                  {field.id === "guideDates" ? (
+                    <div className="survey-pricing-note">
+                      <strong className="survey-pricing-note-title">
+                        {content.guidePricingNoticeTitle}
+                      </strong>
+                      <div className="survey-pricing-note-list">
+                        <span>
+                          {content.guidePricingNoticeDailyRate(oneDayPricingLabel)}
+                        </span>
+                        <span>{content.guidePricingNoticeTwoDays}</span>
+                        <span>{content.guidePricingNoticeThreeDays}</span>
+                      </div>
+                      <div className="survey-pricing-note-footer">
+                        <strong>
+                          {content.guidePricingNoticeExample(twoDayPricingLabel)}
+                        </strong>
+                        <span>{content.guidePricingNoticeFootnote}</span>
+                      </div>
+                    </div>
+                  ) : null}
                   <SurveyField
+                    answers={answers}
                     content={content}
                     field={field}
                     fieldValue={fieldValue}
@@ -1248,6 +1582,29 @@ export default function SurveyClient({ initialLanguage }) {
                     onSingleChange={handleSingleChange}
                     onTextChange={handleTextChange}
                   />
+                  {field.id === "guideDates" && livePricingQuote ? (
+                    <div className="survey-inline-quote">
+                      <strong className="survey-inline-quote-title">
+                        {content.inlineQuoteTitle}
+                      </strong>
+                      <div className="survey-summary-list">
+                        <div className="survey-summary-row">
+                          <span>{content.pricingGuideDaysLabel}</span>
+                          <strong>{selectedGuideDayCount}</strong>
+                        </div>
+                        <div className="survey-summary-row">
+                          <span>{content.pricingDiscountLabel}</span>
+                          <strong>
+                            {content.pricingDiscountValue(livePricingQuote.discountPercent)}
+                          </strong>
+                        </div>
+                        <div className="survey-summary-row">
+                          <span>{content.pricingTotalLabel}</span>
+                          <strong>{livePaymentDisplayLabel}</strong>
+                        </div>
+                      </div>
+                    </div>
+                  ) : null}
                 </div>
               );
             })}

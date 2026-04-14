@@ -758,6 +758,18 @@ img {
   font-size: 0.96rem;
 }
 
+.survey-pricing-empty,
+.survey-pricing-hint {
+  margin: 18px 0 0;
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.survey-pricing-empty {
+  margin-top: 18px;
+}
+
 .survey-main-card {
   padding: 30px;
 }
@@ -807,6 +819,60 @@ img {
 .survey-field-block {
   display: grid;
   gap: 12px;
+}
+
+.survey-pricing-note {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid rgba(110, 119, 255, 0.14);
+  border-radius: 24px;
+  background: linear-gradient(135deg, rgba(241, 244, 255, 0.98), rgba(250, 247, 255, 0.94));
+}
+
+.survey-pricing-note-title {
+  color: var(--accent-deep);
+  font-size: 0.98rem;
+  font-weight: 800;
+}
+
+.survey-pricing-note-list {
+  display: grid;
+  gap: 8px;
+}
+
+.survey-pricing-note-list span,
+.survey-pricing-note-footer span {
+  color: var(--muted);
+  font-size: 0.92rem;
+  line-height: 1.6;
+}
+
+.survey-pricing-note-footer {
+  display: grid;
+  gap: 6px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(29, 27, 79, 0.08);
+}
+
+.survey-pricing-note-footer strong {
+  color: var(--text);
+  font-size: 0.94rem;
+}
+
+.survey-inline-quote {
+  display: grid;
+  gap: 14px;
+  padding: 18px 20px;
+  border: 1px solid rgba(29, 27, 79, 0.08);
+  border-radius: 24px;
+  background: rgba(255, 255, 255, 0.88);
+}
+
+.survey-inline-quote-title {
+  color: var(--accent-deep);
+  font-size: 0.98rem;
+  font-weight: 800;
 }
 
 .survey-field-block label,

@@ -21,6 +21,15 @@
   - budget is now part of page 2 travel details
   - budget unit is `CNY`
   - keyboard input is avoided for budget selection
+- The survey now asks which exact travel dates need a guide:
+  - users select guide-needed dates from the trip date range
+  - only selected guide dates are billable
+  - survey sidebar shows a live frontend price preview
+- Guide pricing is now dynamic instead of fixed:
+  - 1 day = `$89`
+  - 2 days = `10%` discount
+  - 3+ days = `20%` discount
+  - PayPal order amount is recalculated on the server from `answers.guideDates`
 - The completion page is simplified for users:
   - travel summary first
   - PayPal payment section after the summary
@@ -69,16 +78,19 @@
   - fetches saved submission data
 - `POST /api/paypal/create-order`
   - creates a sandbox PayPal order for a saved submission
+  - recomputes amount from selected guide dates
 - `POST /api/paypal/capture-order`
   - captures an approved PayPal order and updates the submission to `paid`
 - Completion page UI
   - shows travel summary
-  - shows a simple `$150 USD` PayPal block
+  - shows guide-day-based PayPal pricing
   - renders only the PayPal wallet button
 - Language switching
   - landing, survey, and completion pages all respond to `?lang=ko|zh|en`
 - Date input UX
   - survey uses native date pickers for trip dates instead of free-text travel-date input
+- Guide date UX
+  - survey converts the selected trip range into tappable date chips for guide-day selection
 
 ## What To Test First Tomorrow
 

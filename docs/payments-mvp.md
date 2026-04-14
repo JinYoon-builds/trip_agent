@@ -1,6 +1,6 @@
 # Payments MVP Setup
 
-This repo is prepared for a `Supabase + PayPal + Resend` flow, while the current survey UI still saves locally.
+This repo is prepared for a `Supabase + PayPal + Resend` flow.
 
 ## What is already scaffolded
 
@@ -26,20 +26,20 @@ Copy `.env.example` to `.env.local` and fill in:
 - `NEXT_PUBLIC_PAYPAL_CLIENT_ID`
 - `PAYPAL_CLIENT_ID`
 - `PAYPAL_CLIENT_SECRET`
-- `PAYPAL_ORDER_AMOUNT`
-- `PAYPAL_ORDER_CURRENCY`
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
 - `NOTIFICATION_EMAIL`
+- `PAYPAL_ORDER_DESCRIPTION` (optional)
 
 ## Pricing note
 
-The landing page can display `₩200,000`, but PayPal still needs a real settlement amount and currency.
+Pricing is now calculated dynamically from the guide dates the traveler selects in the survey.
 
-- `PAYMENT_DISPLAY_LABEL=₩200,000`
-- `PAYPAL_ORDER_AMOUNT` and `PAYPAL_ORDER_CURRENCY` should be the actual merchant charge amount
+- 1 guide day: `$89`
+- 2 guide days: `10%` discount
+- 3 or more guide days: `20%` discount
 
-If buyers pay in a different currency, PayPal handles the conversion on their side depending on PayPal settings and buyer preferences.
+The survey page can preview the price in frontend JavaScript, but the final PayPal order amount is recalculated on the server from `answers.guideDates` before checkout. Settlement currency remains `USD`.
 
 ## Supabase
 
@@ -47,8 +47,6 @@ Run the SQL in `supabase/schema.sql` inside the Supabase SQL editor.
 
 ## Next step to wire the UI
 
-1. Replace the local-only submit call in `app/survey/survey-client.js` with `POST /api/submissions`.
-2. Fetch the saved submission on `/survey/complete`.
-3. Add the PayPal JS SDK on the completion page using `NEXT_PUBLIC_PAYPAL_CLIENT_ID`.
-4. Call `create-order` and `capture-order` from the completion page.
-5. Add a webhook route later as a backstop for payment reconciliation.
+1. Keep the guide-day pricing rules in `lib/pricing.js` as the single source of truth.
+2. If the pricing policy changes, update both the survey preview and PayPal order creation through that shared helper.
+3. Add a webhook route later as a backstop for payment reconciliation.

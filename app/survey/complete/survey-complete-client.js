@@ -5,6 +5,11 @@ import { useEffect, useRef, useState } from "react";
 
 import { getPayPalLocale, normalizeSiteLanguage } from "../../../lib/language";
 import {
+  formatPaymentDisplayLabel,
+  getGuideDayCountFromAnswers,
+  getGuidePricingQuote,
+} from "../../../lib/pricing";
+import {
   readSurveySubmission,
   saveSurveySubmission,
 } from "../../../lib/survey-local-storage";
@@ -14,7 +19,6 @@ import {
   fetchRemoteSubmission,
 } from "../../../lib/submission-client";
 
-const DEFAULT_PAYMENT_DISPLAY_LABEL = "₩200,000";
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? "";
 const PAYPAL_CURRENCY = process.env.NEXT_PUBLIC_PAYPAL_CURRENCY ?? "USD";
 
@@ -102,6 +106,10 @@ const completionContent = {
     paymentStatusProcessing: "Processing approval",
     paymentStatusPaid: "Payment completed",
     paymentReadyLabel: "PayPal Payment",
+    paymentBreakdown: (guideDayCount, discountPercent) =>
+      discountPercent > 0
+        ? `${guideDayCount} guide days selected · ${discountPercent}% discount applied`
+        : `${guideDayCount} guide day selected · standard rate applied`,
     paymentSdkMissing:
       "The PayPal sandbox client id is missing, so the payment button cannot be rendered yet.",
     paymentLoadingSdk: "Loading the PayPal button...",
@@ -174,6 +182,10 @@ const completionContent = {
     paymentStatusProcessing: "승인 처리 중",
     paymentStatusPaid: "결제 완료",
     paymentReadyLabel: "PayPal 결제",
+    paymentBreakdown: (guideDayCount, discountPercent) =>
+      discountPercent > 0
+        ? `가이드 ${guideDayCount}일 선택 · ${discountPercent}% 할인 적용`
+        : `가이드 ${guideDayCount}일 선택 · 기본 요금 적용`,
     paymentSdkMissing:
       "PayPal sandbox client id가 아직 없어 결제 버튼을 렌더할 수 없습니다.",
     paymentLoadingSdk: "PayPal 버튼을 불러오는 중입니다...",
@@ -244,6 +256,10 @@ const completionContent = {
     paymentStatusProcessing: "支付处理中",
     paymentStatusPaid: "支付完成",
     paymentReadyLabel: "PayPal 支付",
+    paymentBreakdown: (guideDayCount, discountPercent) =>
+      discountPercent > 0
+        ? `已选择 ${guideDayCount} 天向导 · 已应用 ${discountPercent}% 折扣`
+        : `已选择 ${guideDayCount} 天向导 · 按标准价格计算`,
     paymentSdkMissing:
       "还没有提供 PayPal sandbox client id，因此暂时无法渲染支付按钮。",
     paymentLoadingSdk: "正在加载 PayPal 按钮...",
@@ -322,8 +338,6 @@ export default function SurveyCompleteClient({
 
         const normalizedSubmission = {
           ...remoteSubmission,
-          paymentDisplayLabel:
-            remoteSubmission?.paymentDisplayLabel || DEFAULT_PAYMENT_DISPLAY_LABEL,
           storageMode: "server",
         };
 
@@ -363,6 +377,15 @@ export default function SurveyCompleteClient({
   const isServerSubmission = loadMode === "server";
   const paymentStatus = submission?.paymentStatus ?? "pending_payment";
   const isPaid = paymentStatus === "paid";
+  const guideDayCount = getGuideDayCountFromAnswers(submission?.answers);
+  const pricingQuote = getGuidePricingQuote({ guideDayCount });
+  const paymentDisplayLabel =
+    submission?.paymentDisplayLabel ||
+    formatPaymentDisplayLabel({
+      amount: pricingQuote.totalAmount,
+      currency: pricingQuote.currency,
+      language,
+    });
   const canRenderPayPal =
     isServerSubmission && Boolean(PAYPAL_CLIENT_ID) && !isPaid;
 
@@ -433,8 +456,7 @@ export default function SurveyCompleteClient({
                 paymentStatus: "payment_created",
                 paymentAmount: order.amount,
                 paymentCurrency: order.currency,
-                paymentDisplayLabel:
-                  prev.paymentDisplayLabel || order.displayLabel || DEFAULT_PAYMENT_DISPLAY_LABEL,
+                paymentDisplayLabel: order.displayLabel || prev.paymentDisplayLabel,
                 paypalOrderId: order.orderId,
               }
             : prev,
@@ -585,7 +607,13 @@ export default function SurveyCompleteClient({
               <div className="survey-inline-payment">
                 <div className="survey-inline-payment-copy">
                   <span className="survey-card-kicker">{content.paymentReadyLabel}</span>
-                  <strong>$150 USD</strong>
+                  <strong>{paymentDisplayLabel}</strong>
+                  <p className="survey-payment-text">
+                    {content.paymentBreakdown(
+                      guideDayCount,
+                      pricingQuote.discountPercent,
+                    )}
+                  </p>
                 </div>
               </div>
             ) : null}
