@@ -12,570 +12,248 @@ import { createRemoteSubmission } from "../../lib/submission-client";
 
 const DEFAULT_PAYMENT_DISPLAY_LABEL = "₩200,000";
 
-const surveyContent = {
-  ko: {
-    brand: "tripagent",
-    back: "랜딩으로 돌아가기",
-    title: "여행 성향 설문",
-    subtitle: "당신의 여행 목적, 취향, 예산, 동행 구성에 맞는 프라이빗 가이드를 연결하기 위한 질문입니다.",
-    sidebarKicker: "Travel Planner",
-    sidebarTitle: "설문 진행 상황",
-    sidebarText: "질문은 5단계로 구성되어 있습니다. 현재 단계와 입력한 여행 프로필을 왼쪽에서 바로 확인할 수 있습니다.",
-    progressLabel: "진행률",
-    summaryTitle: "여행 프로필 요약",
-    summaryFallback: "미정",
-    summaryContactLabel: "연락처 이메일",
-    summaryDatesLabel: "여행 기간",
-    summaryCompanionLabel: "동행 구성",
-    summaryStyleLabel: "여행 스타일",
-    summaryItems: [
-      { label: "목적지", fieldId: "destination" },
-      { label: "연락처", fieldId: "contactEmail" },
-      { label: "동행", fieldId: "companionType" },
-      { label: "예산", fieldId: "dailyBudget" },
-      { label: "핵심 관심사", fieldId: "travelPurpose", extraFieldId: "travelPurposeCustom" },
-    ],
-    cardKicker: "Current Step",
-    cardPill: "Question Form",
-    previous: "이전",
-    next: "다음 단계",
-    finish: "설문 완료",
-    submitting: "저장 중...",
-    submitError:
-      "임시 저장 중 문제가 발생했습니다. 브라우저 저장 공간을 확인한 뒤 다시 시도해 주세요.",
-    emailRequiredError: "연락받을 이메일 주소를 올바르게 입력해 주세요.",
-    selectionCount: "선택",
-    maxSelectionText: (count) => `최대 ${count}개까지 선택 가능`,
-    arrivalLabel: "도착 일시",
-    departureLabel: "출발 일시",
-    destinationSuggestions: ["서울", "부산", "제주", "인천", "경주", "강릉", "여수", "전주"],
-    steps: [
+const sharedSummaryItems = [
+  { label: "Name 姓名", fieldId: "fullName" },
+  { label: "Contact Email 联系邮箱", fieldId: "contactEmail" },
+  { label: "Destination 旅行目的地", fieldId: "destination" },
+  { label: "Dates 旅行时间", fieldId: "travelDates" },
+  { label: "Main Goals 旅行目的", fieldId: "mainGoals", extraFieldId: "mainGoalsOther" },
+];
+
+const sharedSteps = [
+  {
+    id: "basicInformation",
+    title: "Basic Information 基本信息",
+    description:
+      "Start with your essential personal details. 请先填写您的基本个人信息。",
+    fields: [
       {
-        id: "basic",
-        title: "기본 정보",
-        description: "필수 최소 입력 항목입니다. 목적지와 일정, 동행 구성을 먼저 파악합니다.",
-        fields: [
-          {
-            id: "destination",
-            kind: "text",
-            label: "여행 목적지는 어디인가요?",
-            placeholder: "도시 / 지역 선택",
-            suggestionsKey: "destinationSuggestions",
-          },
-          {
-            id: "contactEmail",
-            kind: "text",
-            inputType: "email",
-            label: "연락받을 이메일 주소를 입력해 주세요",
-            placeholder: "name@example.com",
-          },
-          {
-            id: "travelDates",
-            kind: "datetimeRange",
-            label: "여행 기간은 어떻게 되나요?",
-            startId: "arrivalDateTime",
-            endId: "departureDateTime",
-          },
-          {
-            id: "partySize",
-            kind: "number",
-            label: "동행 인원은 몇 명인가요?",
-            placeholder: "예: 2",
-          },
-          {
-            id: "companionType",
-            kind: "single",
-            label: "누구와 함께 여행하시나요?",
-            options: [
-              { value: "solo", label: "혼자" },
-              { value: "friends", label: "친구" },
-              { value: "couple", label: "연인" },
-              { value: "family", label: "가족" },
-              { value: "business", label: "비즈니스" },
-            ],
-          },
+        id: "fullName",
+        kind: "text",
+        label: "First + Last Name 姓名 *",
+        placeholder: "e.g. Jane Doe",
+        required: true,
+      },
+      {
+        id: "contactEmail",
+        kind: "text",
+        inputType: "email",
+        label: "Contact Email 联系邮箱 *",
+        placeholder: "name@example.com",
+        required: true,
+      },
+      {
+        id: "age",
+        kind: "number",
+        label: "Age 年龄 *",
+        placeholder: "e.g. 28",
+        required: true,
+      },
+      {
+        id: "gender",
+        kind: "single",
+        label: "Gender 性别 *",
+        required: true,
+        options: [
+          { value: "male", label: "Male 男" },
+          { value: "female", label: "Female 女" },
+          { value: "nonbinary", label: "Nonbinary 非二元" },
         ],
       },
       {
-        id: "purpose",
-        title: "여행 목적",
-        description: "이번 여행에서 가장 기대하는 경험과 일정 스타일을 정리합니다.",
-        fields: [
-          {
-            id: "travelPurpose",
-            kind: "multi",
-            label: "이번 여행의 주요 목적은 무엇인가요?",
-            options: [
-              { value: "healing", label: "힐링 / 휴식" },
-              { value: "shopping", label: "쇼핑" },
-              { value: "food", label: "맛집 탐방" },
-              { value: "cafe", label: "카페 / 감성 공간" },
-              { value: "landmark", label: "관광 / 랜드마크" },
-              { value: "history", label: "역사 / 문화" },
-              { value: "kcontent", label: "K-pop / K-drama 체험" },
-              { value: "nature", label: "자연 / 풍경" },
-              { value: "activity", label: "액티비티 / 체험" },
-              { value: "beauty", label: "뷰티" },
-              { value: "procedure", label: "성형/시술" },
-              { value: "custom", label: "직접 입력" },
-            ],
-            maxSelections: 3,
-          },
-          {
-            id: "travelPurposeCustom",
-            kind: "text",
-            label: "직접 입력이 있다면 적어주세요",
-            placeholder: "예: 웨딩 스냅, 병원 상담, 공연 관람",
-            showWhen: (answers) =>
-              Array.isArray(answers.travelPurpose) && answers.travelPurpose.includes("custom"),
-          },
-          {
-            id: "scheduleDensity",
-            kind: "single",
-            label: "어떤 여행 스타일을 선호하시나요?",
-            options: [
-              { value: "relaxed", label: "매우 여유롭게 (하루 1~2개 일정)" },
-              { value: "balanced", label: "적당히 (하루 3~4개)" },
-              { value: "packed", label: "빡빡하게 (최대한 많이)" },
-            ],
-          },
-          {
-            id: "planningFreedom",
-            kind: "single",
-            label: "여행 중 어느 정도 계획을 원하시나요?",
-            options: [
-              { value: "fullyPlanned", label: "완전 계획형 (시간 단위 일정)" },
-              { value: "halfPlanned", label: "반반 (큰 틀만 계획)" },
-              { value: "spontaneous", label: "즉흥형 (현장에서 결정)" },
-            ],
-          },
-        ],
-      },
-      {
-        id: "budget",
-        title: "소비 성향",
-        description: "예산 레벨과 돈을 가장 많이 쓰고 싶은 영역을 확인합니다.",
-        fields: [
-          {
-            id: "dailyBudget",
-            kind: "single",
-            label: "1일 평균 여행 예산은 어느 정도인가요?",
-            options: [
-              { value: "budget", label: "저예산" },
-              { value: "mid", label: "중간" },
-              { value: "premium", label: "고급" },
-              { value: "luxury", label: "럭셔리" },
-            ],
-          },
-          {
-            id: "spendingPriority",
-            kind: "multi",
-            label: "어떤 곳에 돈을 가장 많이 쓰고 싶으신가요?",
-            options: [
-              { value: "shopping", label: "쇼핑" },
-              { value: "food", label: "음식" },
-              { value: "stay", label: "숙소" },
-              { value: "experience", label: "체험 / 액티비티" },
-              { value: "cafe", label: "카페 / 감성 공간" },
-            ],
-            maxSelections: 2,
-          },
-        ],
-      },
-      {
-        id: "interest",
-        title: "관심사 / 취향",
-        description: "사진, 카페, 쇼핑, 음식 취향을 세부적으로 파악합니다.",
-        fields: [
-          {
-            id: "photoPreference",
-            kind: "single",
-            label: "사진 찍기 좋은 장소를 얼마나 중요하게 생각하시나요?",
-            options: [
-              { value: "veryImportant", label: "매우 중요" },
-              { value: "normal", label: "보통" },
-              { value: "notImportant", label: "중요하지 않음" },
-            ],
-          },
-          {
-            id: "trendCafePreference",
-            kind: "single",
-            label: "트렌디한 카페나 핫플 방문을 원하시나요?",
-            options: [
-              { value: "veryWant", label: "매우 원함" },
-              { value: "normal", label: "보통" },
-              { value: "notInterested", label: "관심 없음" },
-            ],
-          },
-          {
-            id: "shoppingStyle",
-            kind: "single",
-            label: "어떤 쇼핑을 선호하시나요?",
-            options: [
-              { value: "luxuryBrand", label: "명품 / 브랜드" },
-              { value: "localDesigner", label: "로컬 브랜드 / 디자이너" },
-              { value: "oliveYoungBeauty", label: "올리브영 / 뷰티" },
-              { value: "dutyFree", label: "면세점" },
-              { value: "none", label: "관심 없음" },
-            ],
-          },
-          {
-            id: "foodPreference",
-            kind: "multi",
-            label: "음식 취향을 선택해주세요",
-            options: [
-              { value: "korean", label: "한식" },
-              { value: "streetFood", label: "길거리 음식" },
-              { value: "fineDining", label: "고급 레스토랑" },
-              { value: "cafeDessert", label: "카페 디저트" },
-            ],
-          },
-          {
-            id: "spicyTolerance",
-            kind: "single",
-            label: "매운 음식은 가능하신가요?",
-            options: [
-              { value: "spicyOk", label: "가능" },
-              { value: "spicyNo", label: "불가" },
-            ],
-          },
-          {
-            id: "foodAvoidance",
-            kind: "textarea",
-            label: "피하고 싶은 음식이나 알러지가 있나요?",
-            placeholder: "예: 갑각류 알러지, 고수 불호",
-          },
-        ],
-      },
-      {
-        id: "personality",
-        title: "여행 MBTI",
-        description: "성격 기반 여행 스타일과 꼭 원하는 경험 / 피하고 싶은 경험을 정리합니다.",
-        fields: [
-          {
-            id: "experienceStyle",
-            kind: "single",
-            label: "새로운 경험 vs 검증된 장소",
-            options: [
-              { value: "newChallenge", label: "새로운 곳 도전" },
-              { value: "famousPreference", label: "유명한 곳 선호" },
-            ],
-          },
-          {
-            id: "crowdPreference",
-            kind: "single",
-            label: "사람 많은 곳 vs 한적한 곳",
-            options: [
-              { value: "hotplace", label: "북적이는 핫플" },
-              { value: "quiet", label: "조용한 곳" },
-            ],
-          },
-          {
-            id: "planChange",
-            kind: "single",
-            label: "계획 변경 가능성",
-            options: [
-              { value: "keepPlan", label: "계획 그대로" },
-              { value: "changeIfNeeded", label: "상황에 따라 변경" },
-            ],
-          },
-          {
-            id: "mustHave",
-            kind: "textarea",
-            label: "이번 여행에서 “절대 놓치고 싶지 않은 것” 1가지는?",
-            placeholder: "예: K-pop 체험, 성수 핫플, 북촌 한옥마을",
-          },
-          {
-            id: "avoidExperience",
-            kind: "textarea",
-            label: "이번 여행에서 “피하고 싶은 경험”은?",
-            placeholder: "예: 긴 웨이팅, 과도한 이동, 복잡한 동선",
-          },
-        ],
+        id: "mbti",
+        kind: "text",
+        label: "MBTI",
+        placeholder: "e.g. ENFP",
       },
     ],
   },
+  {
+    id: "travelDetails",
+    title: "Travel Details 旅游信息",
+    description:
+      "What are your travel details? 您的旅行信息是什么？",
+    fields: [
+      {
+        id: "destination",
+        kind: "text",
+        label: "Visiting city & country 旅行目的地（城市，国家） *",
+        placeholder: "e.g. Seoul, Korea",
+        required: true,
+      },
+      {
+        id: "travelDates",
+        kind: "textarea",
+        label: "What are the dates you are traveling? 旅行时间 *",
+        placeholder:
+          "ex: Seoul (4/14/2026-4/18/2026), Busan (4/18/2026-4/29/2026)",
+        required: true,
+      },
+      {
+        id: "travelCompanion",
+        kind: "single",
+        label: "Who are you traveling with? 您和谁一起旅行？ *",
+        required: true,
+        options: [
+          { value: "solo", label: "Solo 独自" },
+          { value: "friends", label: "Friends 朋友" },
+          { value: "partner", label: "Partner 情侣" },
+          { value: "family", label: "Family 家人" },
+          { value: "business", label: "Business 商务" },
+        ],
+      },
+      {
+        id: "mainGoals",
+        kind: "multi",
+        label:
+          "What are the main goals of this trip? (choose 3) 这次旅行最重要的目的是什么？(最多选择3项) *",
+        required: true,
+        maxSelections: 3,
+        options: [
+          { value: "relaxation", label: "Relaxation 放松" },
+          { value: "shopping", label: "Shopping 购物" },
+          { value: "foodCafes", label: "Food/Cafes 美食/咖啡店" },
+          { value: "kcontent", label: "K-pop/K-drama 韩流" },
+          { value: "culture", label: "Culture 文化" },
+          { value: "nature", label: "Nature 自然" },
+          { value: "beautyFashion", label: "Beauty/Fashion 美妆 / 时尚" },
+          { value: "other", label: "Other 其他" },
+        ],
+      },
+      {
+        id: "mainGoalsOther",
+        kind: "text",
+        label: "Other 其他",
+        placeholder: "Please specify / 请填写",
+        showWhen: (answers) =>
+          Array.isArray(answers.mainGoals) && answers.mainGoals.includes("other"),
+      },
+    ],
+  },
+  {
+    id: "travelType",
+    title: "Travel Type 旅行类型",
+    description:
+      "What is your travel style like? 您的旅行风格更偏向哪种？",
+    fields: [
+      {
+        id: "scheduleFeel",
+        kind: "single",
+        label: "How would you like your schedule to feel? 您希望旅行节奏是？ *",
+        required: true,
+        options: [
+          { value: "relaxed", label: "Relaxed (1-2 activities/day) 轻松（每天1-2个行程）" },
+          { value: "balanced", label: "Balanced (3-4 activities/day) 适中（3-4个）" },
+          { value: "packed", label: "Packed (as many as possible) 紧凑（尽可能多）" },
+        ],
+      },
+      {
+        id: "planningStyle",
+        kind: "single",
+        label: "What's your planning style? 您的旅行规划风格是？ *",
+        required: true,
+        options: [
+          { value: "fullyPlanned", label: "Fully planned (detailed schedule) 详细计划型" },
+          { value: "semiPlanned", label: "Semi-planned (main structure only) 大致规划型" },
+          { value: "spontaneous", label: "Spontaneous (decide on the go) 随性即兴型" },
+        ],
+      },
+      {
+        id: "budgetLevel",
+        kind: "single",
+        label: "Budget & spending 请选择您的预算 *",
+        required: true,
+        options: [
+          { value: "tight", label: "Tight budget 经济型" },
+          { value: "standard", label: "Standard 普通" },
+          { value: "premium", label: "Premium 高端" },
+          { value: "luxury", label: "Luxury 奢华" },
+        ],
+      },
+      {
+        id: "preferenceRanking",
+        kind: "textarea",
+        label: "Preference (rank in order) 偏好排序（请按重要性排序） *",
+        placeholder:
+          "e.g. 1. Food/Cafes 2. Shopping 3. Culture",
+        required: true,
+      },
+      {
+        id: "mustDo",
+        kind: "textarea",
+        label: "What are things you must do during this trip? 这次旅行中，你一定要做的事情是什么？ *",
+        placeholder: "Please list the must-do experiences for this trip.",
+        required: true,
+      },
+      {
+        id: "avoidDuringTrip",
+        kind: "textarea",
+        label: "What are things you want to avoid during the trip? 这次旅行中，你想要避免的事情是什么？ *",
+        placeholder: "Please share what you want to avoid during the trip.",
+        required: true,
+      },
+    ],
+  },
+];
+
+const surveyContent = {
+  ko: {
+    brand: "tripagent",
+    back: "Back to home",
+    title: "All-in-one Travel Service",
+    subtitle:
+      "Travel made easy. From planning to the end, your trip is fully taken care of. 让旅行更简单。从规划到结束，全程为您打理。",
+    sidebarKicker: "Travel Service",
+    sidebarTitle: "Survey Progress",
+    sidebarText:
+      "This survey has 3 pages. Fill in the key details so we can understand your trip clearly.",
+    progressLabel: "Progress",
+    summaryTitle: "Quick Summary",
+    summaryFallback: "Not yet",
+    summaryItems: sharedSummaryItems,
+    cardKicker: "Page",
+    cardPill: "Question Form",
+    previous: "Previous",
+    next: "Next",
+    finish: "Submit Survey",
+    submitting: "Saving...",
+    submitError:
+      "We could not save your survey just now. Please try again.",
+    requiredFieldError:
+      "Please fill in all required fields before submitting.",
+    emailRequiredError: "Please enter a valid contact email.",
+    selectionCount: "Selected",
+    maxSelectionText: (count) => `Choose up to ${count}`,
+    steps: sharedSteps,
+  },
   zh: {
     brand: "tripagent",
-    back: "返回落地页",
-    title: "旅行偏好问卷",
-    subtitle: "这些问题用于理解你的旅行目的、偏好、预算与同行方式，以便匹配最合适的私人向导。",
-    sidebarKicker: "Travel Planner",
+    back: "返回首页",
+    title: "All-in-one Travel Service 一站式旅行服务",
+    subtitle:
+      "让旅行更简单。从规划到结束，全程为您打理。Travel made easy. From planning to the end, your trip is fully taken care of.",
+    sidebarKicker: "旅行服务",
     sidebarTitle: "问卷进度",
-    sidebarText: "问卷共 5 个步骤。左侧会显示当前进度以及已经形成的旅行画像摘要。",
+    sidebarText:
+      "问卷共 3 页。请填写关键信息，方便我们更准确地理解你的旅行需求。",
     progressLabel: "进度",
-    summaryTitle: "旅行画像摘要",
+    summaryTitle: "快速摘要",
     summaryFallback: "待填写",
-    summaryContactLabel: "联系邮箱",
-    summaryDatesLabel: "旅行期间",
-    summaryCompanionLabel: "同行构成",
-    summaryStyleLabel: "旅行风格",
-    summaryItems: [
-      { label: "目的地", fieldId: "destination" },
-      { label: "联系邮箱", fieldId: "contactEmail" },
-      { label: "同行", fieldId: "companionType" },
-      { label: "预算", fieldId: "dailyBudget" },
-      { label: "核心兴趣", fieldId: "travelPurpose", extraFieldId: "travelPurposeCustom" },
-    ],
-    cardKicker: "Current Step",
-    cardPill: "Question Form",
+    summaryItems: sharedSummaryItems,
+    cardKicker: "页面",
+    cardPill: "问卷表单",
     previous: "上一步",
     next: "下一步",
-    finish: "完成问卷",
+    finish: "提交问卷",
     submitting: "保存中...",
     submitError:
-      "临时保存时发生问题。请检查浏览器本地存储是否可用，然后重试。",
+      "暂时无法保存问卷，请稍后再试。",
+    requiredFieldError:
+      "请先填写所有必填项后再提交。",
     emailRequiredError: "请输入正确的联系邮箱地址。",
     selectionCount: "已选",
-    maxSelectionText: (count) => `最多可选择 ${count} 项`,
-    arrivalLabel: "到达时间",
-    departureLabel: "离开时间",
-    destinationSuggestions: ["首尔", "釜山", "济州", "仁川", "庆州", "江陵", "丽水", "全州"],
-    steps: [
-      {
-        id: "basic",
-        title: "基本信息",
-        description: "先确认最基本的行程信息，包括目的地、时间和同行构成。",
-        fields: [
-          {
-            id: "destination",
-            kind: "text",
-            label: "旅行目的地是哪里？",
-            placeholder: "城市 / 地区选择",
-            suggestionsKey: "destinationSuggestions",
-          },
-          {
-            id: "contactEmail",
-            kind: "text",
-            inputType: "email",
-            label: "请输入可联系到你的邮箱地址",
-            placeholder: "name@example.com",
-          },
-          {
-            id: "travelDates",
-            kind: "datetimeRange",
-            label: "旅行期间是怎样安排的？",
-            startId: "arrivalDateTime",
-            endId: "departureDateTime",
-          },
-          {
-            id: "partySize",
-            kind: "number",
-            label: "同行人数是多少？",
-            placeholder: "例如：2",
-          },
-          {
-            id: "companionType",
-            kind: "single",
-            label: "你会和谁一起旅行？",
-            options: [
-              { value: "solo", label: "独自" },
-              { value: "friends", label: "朋友" },
-              { value: "couple", label: "情侣" },
-              { value: "family", label: "家人" },
-              { value: "business", label: "商务" },
-            ],
-          },
-        ],
-      },
-      {
-        id: "purpose",
-        title: "旅行目的",
-        description: "整理这次旅行最想实现的体验，以及行程节奏与规划偏好。",
-        fields: [
-          {
-            id: "travelPurpose",
-            kind: "multi",
-            label: "这次旅行的主要目的是什么？",
-            options: [
-              { value: "healing", label: "疗愈 / 休息" },
-              { value: "shopping", label: "购物" },
-              { value: "food", label: "美食探店" },
-              { value: "cafe", label: "咖啡 / 氛围空间" },
-              { value: "landmark", label: "观光 / 地标" },
-              { value: "history", label: "历史 / 文化" },
-              { value: "kcontent", label: "K-pop / 韩剧体验" },
-              { value: "nature", label: "自然 / 风景" },
-              { value: "activity", label: "活动 / 体验" },
-              { value: "beauty", label: "美容" },
-              { value: "procedure", label: "整形 / 项目" },
-              { value: "custom", label: "直接输入" },
-            ],
-            maxSelections: 3,
-          },
-          {
-            id: "travelPurposeCustom",
-            kind: "text",
-            label: "如果有其他目的，请直接填写",
-            placeholder: "例如：婚纱拍摄、医院咨询、看演出",
-            showWhen: (answers) =>
-              Array.isArray(answers.travelPurpose) && answers.travelPurpose.includes("custom"),
-          },
-          {
-            id: "scheduleDensity",
-            kind: "single",
-            label: "你偏好的旅行节奏是？",
-            options: [
-              { value: "relaxed", label: "非常轻松（每天 1~2 个安排）" },
-              { value: "balanced", label: "适中（每天 3~4 个安排）" },
-              { value: "packed", label: "紧凑（尽量安排更多）" },
-            ],
-          },
-          {
-            id: "planningFreedom",
-            kind: "single",
-            label: "旅行中希望有多高的计划程度？",
-            options: [
-              { value: "fullyPlanned", label: "完全计划型（按小时安排）" },
-              { value: "halfPlanned", label: "一半一半（只规划大框架）" },
-              { value: "spontaneous", label: "偏即兴（现场决定）" },
-            ],
-          },
-        ],
-      },
-      {
-        id: "budget",
-        title: "消费倾向",
-        description: "确认每日预算等级，以及最愿意重点消费的项目。",
-        fields: [
-          {
-            id: "dailyBudget",
-            kind: "single",
-            label: "每天的平均旅行预算大概是多少？",
-            options: [
-              { value: "budget", label: "低预算" },
-              { value: "mid", label: "中等" },
-              { value: "premium", label: "高端" },
-              { value: "luxury", label: "奢华" },
-            ],
-          },
-          {
-            id: "spendingPriority",
-            kind: "multi",
-            label: "你最想把钱花在哪些地方？",
-            options: [
-              { value: "shopping", label: "购物" },
-              { value: "food", label: "餐饮" },
-              { value: "stay", label: "住宿" },
-              { value: "experience", label: "体验 / 活动" },
-              { value: "cafe", label: "咖啡 / 氛围空间" },
-            ],
-            maxSelections: 2,
-          },
-        ],
-      },
-      {
-        id: "interest",
-        title: "兴趣 / 偏好",
-        description: "了解你对拍照、咖啡、购物与饮食方面的具体偏好。",
-        fields: [
-          {
-            id: "photoPreference",
-            kind: "single",
-            label: "你有多重视适合拍照的地点？",
-            options: [
-              { value: "veryImportant", label: "非常重要" },
-              { value: "normal", label: "一般" },
-              { value: "notImportant", label: "不重要" },
-            ],
-          },
-          {
-            id: "trendCafePreference",
-            kind: "single",
-            label: "你想去潮流咖啡馆或热门打卡地吗？",
-            options: [
-              { value: "veryWant", label: "非常想去" },
-              { value: "normal", label: "一般" },
-              { value: "notInterested", label: "没兴趣" },
-            ],
-          },
-          {
-            id: "shoppingStyle",
-            kind: "single",
-            label: "你偏好的购物类型是什么？",
-            options: [
-              { value: "luxuryBrand", label: "奢侈品 / 品牌" },
-              { value: "localDesigner", label: "本地品牌 / 设计师" },
-              { value: "oliveYoungBeauty", label: "Olive Young / 美妆" },
-              { value: "dutyFree", label: "免税店" },
-              { value: "none", label: "没兴趣" },
-            ],
-          },
-          {
-            id: "foodPreference",
-            kind: "multi",
-            label: "请选择你的饮食偏好",
-            options: [
-              { value: "korean", label: "韩餐" },
-              { value: "streetFood", label: "街头小吃" },
-              { value: "fineDining", label: "高级餐厅" },
-              { value: "cafeDessert", label: "咖啡甜点" },
-            ],
-          },
-          {
-            id: "spicyTolerance",
-            kind: "single",
-            label: "你能吃辣吗？",
-            options: [
-              { value: "spicyOk", label: "可以" },
-              { value: "spicyNo", label: "不可以" },
-            ],
-          },
-          {
-            id: "foodAvoidance",
-            kind: "textarea",
-            label: "有没有想避开的食物或过敏情况？",
-            placeholder: "例如：甲壳类过敏、不吃香菜",
-          },
-        ],
-      },
-      {
-        id: "personality",
-        title: "旅行 MBTI",
-        description: "最后用几道性格问题确认你的旅行风格与想避开的体验。",
-        fields: [
-          {
-            id: "experienceStyle",
-            kind: "single",
-            label: "新的体验 vs 已验证的地点",
-            options: [
-              { value: "newChallenge", label: "挑战新地方" },
-              { value: "famousPreference", label: "更偏爱知名地点" },
-            ],
-          },
-          {
-            id: "crowdPreference",
-            kind: "single",
-            label: "热闹人多 vs 安静悠闲",
-            options: [
-              { value: "hotplace", label: "热闹热门地" },
-              { value: "quiet", label: "安静的地方" },
-            ],
-          },
-          {
-            id: "planChange",
-            kind: "single",
-            label: "计划变更可能性",
-            options: [
-              { value: "keepPlan", label: "按原计划进行" },
-              { value: "changeIfNeeded", label: "根据情况调整" },
-            ],
-          },
-          {
-            id: "mustHave",
-            kind: "textarea",
-            label: "这次旅行中“绝对不想错过”的一件事是什么？",
-            placeholder: "例如：K-pop 体验、圣水热门店、北村韩屋村",
-          },
-          {
-            id: "avoidExperience",
-            kind: "textarea",
-            label: "这次旅行中“最想避免”的体验是什么？",
-            placeholder: "例如：长时间排队、移动太多、动线复杂",
-          },
-        ],
-      },
-    ],
+    maxSelectionText: (count) => `最多选择 ${count} 项`,
+    steps: sharedSteps,
   },
 };
 
@@ -677,6 +355,22 @@ function shouldFallBackToLocalSave(error) {
   }
 
   return error instanceof TypeError;
+}
+
+function findFirstMissingRequiredField(steps, answers) {
+  for (let stepIndex = 0; stepIndex < steps.length; stepIndex += 1) {
+    for (const field of steps[stepIndex].fields) {
+      if (!field.required || !isFieldVisible(field, answers)) {
+        continue;
+      }
+
+      if (!isFieldAnswered(field, answers)) {
+        return { stepIndex, fieldId: field.id };
+      }
+    }
+  }
+
+  return null;
 }
 
 function SurveyField({
@@ -897,6 +591,11 @@ export default function SurveyClient({ initialLanguage }) {
   };
 
   const buildSubmissionSummary = () => {
+    const fullName = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("fullName"),
+    });
     const destination = formatSummaryValue({
       answers,
       fallback: content.summaryFallback,
@@ -912,65 +611,105 @@ export default function SurveyClient({ initialLanguage }) {
       fallback: content.summaryFallback,
       field: fieldMap.get("travelDates"),
     });
-    const companionType = formatSummaryValue({
+    const age = formatSummaryValue({
       answers,
       fallback: "",
-      field: fieldMap.get("companionType"),
+      field: fieldMap.get("age"),
     });
-    const partySize =
-      typeof answers.partySize === "string" && answers.partySize.trim()
-        ? `${answers.partySize.trim()}${language === "zh" ? " 人" : "명"}`
-        : "";
-    const budget = formatSummaryValue({
+    const gender = formatSummaryValue({
+      answers,
+      fallback: "",
+      field: fieldMap.get("gender"),
+    });
+    const mbti = formatSummaryValue({
+      answers,
+      fallback: "",
+      field: fieldMap.get("mbti"),
+    });
+    const travelCompanion = formatSummaryValue({
       answers,
       fallback: content.summaryFallback,
-      field: fieldMap.get("dailyBudget"),
+      field: fieldMap.get("travelCompanion"),
     });
-    const purpose = formatSummaryValue({
+    const mainGoals = formatSummaryValue({
       answers,
-      extraFieldId: "travelPurposeCustom",
+      extraFieldId: "mainGoalsOther",
       fallback: content.summaryFallback,
-      field: fieldMap.get("travelPurpose"),
+      field: fieldMap.get("mainGoals"),
     });
-    const scheduleDensity = formatSummaryValue({
+    const scheduleFeel = formatSummaryValue({
       answers,
       fallback: "",
-      field: fieldMap.get("scheduleDensity"),
+      field: fieldMap.get("scheduleFeel"),
     });
-    const planningFreedom = formatSummaryValue({
+    const planningStyle = formatSummaryValue({
       answers,
       fallback: "",
-      field: fieldMap.get("planningFreedom"),
+      field: fieldMap.get("planningStyle"),
+    });
+    const budgetLevel = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("budgetLevel"),
+    });
+    const preferenceRanking = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("preferenceRanking"),
+    });
+    const mustDo = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("mustDo"),
+    });
+    const avoidDuringTrip = formatSummaryValue({
+      answers,
+      fallback: content.summaryFallback,
+      field: fieldMap.get("avoidDuringTrip"),
     });
 
     return [
-      { label: content.summaryItems[0].label, value: destination },
-      { label: content.summaryContactLabel, value: contactEmail },
+      { label: "Name 姓名", value: fullName },
+      { label: "Contact Email 联系邮箱", value: contactEmail },
       {
-        label: content.summaryCompanionLabel,
+        label: "Age / Gender / MBTI",
         value: joinSummaryValues(
-          [companionType, partySize],
+          [age, gender, mbti],
           content.summaryFallback,
         ),
       },
-      { label: content.summaryDatesLabel, value: travelDates },
-      { label: content.summaryItems[3].label, value: budget },
-      { label: content.summaryItems[4].label, value: purpose },
+      { label: "Destination 旅行目的地", value: destination },
+      { label: "Dates 旅行时间", value: travelDates },
+      { label: "Traveling With 同行", value: travelCompanion },
+      { label: "Main Goals 旅行目的", value: mainGoals },
       {
-        label: content.summaryStyleLabel,
+        label: "Travel Style 旅行风格",
         value: joinSummaryValues(
-          [scheduleDensity, planningFreedom],
+          [scheduleFeel, planningStyle],
           content.summaryFallback,
         ),
       },
+      { label: "Budget 预算", value: budgetLevel },
+      { label: "Preference Ranking 偏好排序", value: preferenceRanking },
+      { label: "Must Do 必做事项", value: mustDo },
+      { label: "Avoid 避免事项", value: avoidDuringTrip },
     ];
   };
 
   const handleSubmit = async () => {
+    const missingRequiredField = findFirstMissingRequiredField(steps, answers);
+
+    if (missingRequiredField) {
+      setCurrentStepIndex(missingRequiredField.stepIndex);
+      setSubmitError(content.requiredFieldError);
+      return;
+    }
+
     const contactEmail =
       typeof answers.contactEmail === "string" ? answers.contactEmail.trim() : "";
 
     if (!isValidEmail(contactEmail)) {
+      setCurrentStepIndex(0);
       setSubmitError(content.emailRequiredError);
       return;
     }
@@ -1054,7 +793,7 @@ export default function SurveyClient({ initialLanguage }) {
             onClick={() => handleLanguageChange("ko")}
             type="button"
           >
-            한국어
+            EN
           </button>
           <button
             className={language === "zh" ? "lang-chip active" : "lang-chip"}
