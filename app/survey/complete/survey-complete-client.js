@@ -77,10 +77,15 @@ const completionContent = {
     heroTitle: "거의 완료되었습니다",
     heroSubtitle:
       "PayPal 결제를 완료하면 입력한 이메일로 몇 시간 내 맞춤 가이드 안내를 보내드립니다.",
+    paidHeroTitle: "결제가 완료되었습니다",
+    paidHeroSubtitle:
+      "2~3시간 이내에 현지 대학생 가이드가 입력하신 이메일로 연락드릴 예정입니다.",
     summaryKicker: "Travel Snapshot",
     summaryTitle: "입력한 여행 정보",
     summaryDescription:
       "아래 내용을 확인한 뒤 결제를 마무리해 주세요.",
+    summaryDescriptionPaid:
+      "입력한 여행 정보와 현재 결제 상태를 아래에서 확인해 주세요.",
     summaryPillLocal: "Preview",
     summaryPillServer: "Ready to Pay",
     statusKicker: "Status",
@@ -111,6 +116,9 @@ const completionContent = {
       "결제가 취소되었습니다. 다시 시도하면 새 주문을 생성합니다.",
     paymentCompleted:
       "결제가 완료되었습니다. 입력한 이메일로 몇 시간 내 가이드 안내 메일을 보내드릴 예정입니다.",
+    paymentSuccessTitle: "결제가 완료되었습니다!",
+    paymentSuccessText:
+      "2~3시간 이내에 현지 대학생 가이드가 입력하신 이메일로 연락드릴 예정입니다.",
     paymentUnavailable:
       "현재 환경에서는 PayPal 버튼을 표시할 수 없습니다.",
     nextTitle: "다음에 붙이면 좋은 흐름",
@@ -141,9 +149,13 @@ const completionContent = {
     heroTitle: "快完成了",
     heroSubtitle:
       "完成 PayPal 支付后，我们会在几小时内把定制向导邮件发送到你填写的邮箱。",
+    paidHeroTitle: "支付已完成",
+    paidHeroSubtitle:
+      "2 到 3 小时内，当地大学生向导会通过你填写的邮箱联系你。",
     summaryKicker: "Travel Snapshot",
     summaryTitle: "你填写的旅行信息",
     summaryDescription: "请确认以下内容，然后完成支付。",
+    summaryDescriptionPaid: "请在下方确认你填写的旅行信息和当前支付状态。",
     summaryPillLocal: "Preview",
     summaryPillServer: "Ready to Pay",
     statusKicker: "Status",
@@ -174,6 +186,9 @@ const completionContent = {
       "支付已取消。再次尝试时会创建新的订单。",
     paymentCompleted:
       "支付已经完成。我们会在几小时内把向导介绍邮件发送到你填写的邮箱。",
+    paymentSuccessTitle: "支付已完成！",
+    paymentSuccessText:
+      "2 到 3 小时内，当地大学生向导会通过你填写的邮箱联系你。",
     paymentUnavailable:
       "当前环境无法显示 PayPal 按钮。",
     nextTitle: "后续可以接上的流程",
@@ -277,8 +292,9 @@ export default function SurveyCompleteClient({
   const content = completionContent[initialLanguage];
   const isServerSubmission = loadMode === "server";
   const paymentStatus = submission?.paymentStatus ?? "pending_payment";
+  const isPaid = paymentStatus === "paid";
   const canRenderPayPal =
-    isServerSubmission && Boolean(PAYPAL_CLIENT_ID) && paymentStatus !== "paid";
+    isServerSubmission && Boolean(PAYPAL_CLIENT_ID) && !isPaid;
 
   useEffect(() => {
     if (!canRenderPayPal) {
@@ -368,7 +384,6 @@ export default function SurveyCompleteClient({
 
         setSubmission(nextSubmission);
         saveSurveySubmission(nextSubmission);
-        setPaymentMessage(content.paymentCompleted);
       },
       onCancel: () => {
         setPaymentMessage(content.paymentCancelled);
@@ -405,7 +420,6 @@ export default function SurveyCompleteClient({
   }, [
     canRenderPayPal,
     content.paymentCancelled,
-    content.paymentCompleted,
     content.paymentError,
     content.paymentUnavailable,
     isPayPalReady,
@@ -429,8 +443,8 @@ export default function SurveyCompleteClient({
       <section className="survey-hero">
         <div className="survey-hero-copy">
           <span className="survey-kicker">{content.heroKicker}</span>
-          <h1>{content.heroTitle}</h1>
-          <p>{content.heroSubtitle}</p>
+          <h1>{isPaid ? content.paidHeroTitle : content.heroTitle}</h1>
+          <p>{isPaid ? content.paidHeroSubtitle : content.heroSubtitle}</p>
         </div>
       </section>
 
@@ -484,7 +498,9 @@ export default function SurveyCompleteClient({
               </div>
             </div>
 
-            <p className="survey-main-description">{content.summaryDescription}</p>
+            <p className="survey-main-description">
+              {isPaid ? content.summaryDescriptionPaid : content.summaryDescription}
+            </p>
 
             <div className="survey-complete-grid">
               {submission.summary.map((item) => (
@@ -504,25 +520,48 @@ export default function SurveyCompleteClient({
               </div>
             ) : null}
 
-            {isServerSubmission && (PAYPAL_CLIENT_ID || paymentMessage || paymentError) ? (
+            {isServerSubmission && !isPaid && (PAYPAL_CLIENT_ID || paymentMessage || paymentError) ? (
               <div className="survey-payment-shell">
                 {!PAYPAL_CLIENT_ID ? (
                   <p className="survey-payment-helper">{content.paymentSdkMissing}</p>
-                ) : !isPayPalReady && paymentStatus !== "paid" ? (
+                ) : !isPayPalReady && !isPaid ? (
                   <p className="survey-payment-helper">{content.paymentLoadingSdk}</p>
-                ) : paymentStatus === "paid" ? null : (
+                ) : isPaid ? null : (
                   <div
                     className="survey-paypal-button"
                     ref={paypalContainerRef}
                   />
                 )}
-                <p className="survey-payment-helper">{content.paymentButtonHint}</p>
+                {!isPaid ? (
+                  <p className="survey-payment-helper">{content.paymentButtonHint}</p>
+                ) : null}
                 {paymentMessage ? (
                   <p className="survey-payment-message">{paymentMessage}</p>
                 ) : null}
                 {paymentError ? (
                   <p className="survey-submit-error">{paymentError}</p>
                 ) : null}
+              </div>
+            ) : null}
+
+            {isServerSubmission && isPaid ? (
+              <div className="survey-paid-state" role="status" aria-live="polite">
+                <div className="survey-paid-state-icon" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" focusable="false">
+                    <path
+                      d="M20 6 9 17l-5-5"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth="2.5"
+                    />
+                  </svg>
+                </div>
+                <div className="survey-paid-state-copy">
+                  <strong>{content.paymentSuccessTitle}</strong>
+                  <p>{content.paymentSuccessText}</p>
+                </div>
               </div>
             ) : null}
 

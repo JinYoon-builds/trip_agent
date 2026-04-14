@@ -10,6 +10,13 @@
 - PayPal checkout is wired for sandbox and restricted to the PayPal wallet button only.
 - A successful `create-order` call was verified against the sandbox PayPal app.
 - Supabase insert was verified against the `survey_submissions` table.
+- The paid-state UX on the completion page is now implemented:
+  - green success check block
+  - paid-specific hero copy
+  - no PayPal button after payment is completed
+- A full sandbox buyer flow was verified in the browser:
+  - submission moved to `payment_status = paid`
+  - completion page rendered the new paid-state UX correctly on mobile
 
 ## Important Runtime Notes
 
@@ -17,6 +24,8 @@
 - The following sensitive keys were pasted into chat during setup and should be rotated after this MVP round:
   - Supabase `service_role`
   - PayPal `client secret`
+- Resend notification wiring exists in code, but real email sending is still blocked until a sending domain is set up.
+- `NOTIFICATION_EMAIL` is only a temporary local testing target. Final team lead recipient should be set after the domain/email setup is decided.
 
 ## What Works Today
 
@@ -35,15 +44,20 @@
 
 ## What To Test First Tomorrow
 
-1. Complete the survey in the browser and land on the completion page.
-2. Approve payment with a PayPal sandbox personal buyer account.
-3. Confirm the submission row in Supabase changes to `payment_status = paid`.
-4. Confirm the completion page shows the paid state cleanly on mobile.
+1. Buy and connect a sending domain first.
+2. Recommended cheap candidate seen in Vercel search: `tripagent.company`.
+3. After purchase, connect it to the production project on Vercel.
+4. In Resend, verify a sending subdomain such as `send.tripagent.company`.
+5. Set:
+   - `RESEND_API_KEY`
+   - `EMAIL_FROM=TripAgent <alerts@send.tripagent.company>`
+   - `NOTIFICATION_EMAIL=<team lead email>`
+6. Re-run the PayPal sandbox payment flow and confirm the operator notification email arrives.
 
 ## Next Work
 
-1. Verify end-to-end capture in the browser with a sandbox buyer account.
-2. Add a lightweight paid-state UX on the completion page.
+1. Buy the domain and finish Resend sender setup.
+2. Test operator notification email delivery after payment.
 3. Decide the manual operations flow after payment:
    - where to check newly paid submissions
    - how to send the follow-up guide email manually

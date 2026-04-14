@@ -1134,6 +1134,49 @@ img {
   line-height: 1.6;
 }
 
+.survey-paid-state {
+  display: flex;
+  gap: 16px;
+  align-items: flex-start;
+  margin-top: 20px;
+  padding: 20px 22px;
+  border: 1px solid rgba(44, 140, 103, 0.18);
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(236, 253, 245, 0.98), rgba(245, 255, 251, 0.94));
+}
+
+.survey-paid-state-icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 48px;
+  height: 48px;
+  flex: 0 0 48px;
+  border-radius: 999px;
+  background: linear-gradient(135deg, #29a36a, #208f5d);
+  color: #ffffff;
+  box-shadow: 0 12px 24px rgba(32, 143, 93, 0.2);
+}
+
+.survey-paid-state-icon svg {
+  width: 24px;
+  height: 24px;
+}
+
+.survey-paid-state-copy strong {
+  display: block;
+  color: #166044;
+  font-size: 1.02rem;
+  font-weight: 900;
+  line-height: 1.4;
+}
+
+.survey-paid-state-copy p {
+  margin: 8px 0 0;
+  color: #2f6a54;
+  line-height: 1.7;
+}
+
 .survey-inline-payment {
   display: flex;
   justify-content: space-between;
@@ -1268,6 +1311,10 @@ img {
   .survey-inline-payment-status {
     justify-items: start;
     text-align: left;
+  }
+
+  .survey-paid-state {
+    padding: 18px;
   }
 
   .survey-complete-grid {
