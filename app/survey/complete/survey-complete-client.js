@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { getPayPalLocale, normalizeSiteLanguage } from "../../../lib/language";
 import {
   readSurveySubmission,
   saveSurveySubmission,
@@ -16,10 +17,6 @@ import {
 const DEFAULT_PAYMENT_DISPLAY_LABEL = "₩200,000";
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? "";
 const PAYPAL_CURRENCY = process.env.NEXT_PUBLIC_PAYPAL_CURRENCY ?? "USD";
-
-function getPayPalLocale(language) {
-  return language === "zh" ? "zh_CN" : "ko_KR";
-}
 
 function loadPayPalSdk({ clientId, currency, locale }) {
   if (typeof window === "undefined") {
@@ -70,6 +67,78 @@ function loadPayPalSdk({ clientId, currency, locale }) {
 }
 
 const completionContent = {
+  en: {
+    brand: "tripagent",
+    back: "Back to home",
+    heroKicker: "Survey Complete",
+    heroTitle: "You are almost done",
+    heroSubtitle:
+      "Complete the PayPal payment and we will reach out to your email with your matched guide within a few hours.",
+    paidHeroTitle: "Payment completed",
+    paidHeroSubtitle:
+      "A local university student guide will contact you through the email you entered within 2 to 3 hours.",
+    summaryKicker: "Travel Snapshot",
+    summaryTitle: "Your Trip Details",
+    summaryDescription:
+      "Review the details below, then complete your payment.",
+    summaryDescriptionPaid:
+      "Review your submitted trip details and current payment status below.",
+    summaryPillLocal: "Preview",
+    summaryPillServer: "Ready to Pay",
+    statusKicker: "Status",
+    statusTitle: "Current Status",
+    statusTextLocal:
+      "This survey is temporarily stored only in the current browser. Until the backend flow is fully connected, you can use this state to review the experience.",
+    statusTextServer:
+      "This survey has been saved on the server and is ready to continue into payment and operations handling.",
+    statusBadgeLocal: "Saved Locally",
+    statusBadgeServer: "Saved on Server",
+    requestKicker: "Submission",
+    requestTitle: "Saved Record",
+    requestIdLabel: "Saved ID",
+    submittedAtLabel: "Saved At",
+    paymentStatusPending: "Waiting for payment",
+    paymentStatusCreated: "Order created",
+    paymentStatusProcessing: "Processing approval",
+    paymentStatusPaid: "Payment completed",
+    paymentReadyLabel: "PayPal Payment",
+    paymentSdkMissing:
+      "The PayPal sandbox client id is missing, so the payment button cannot be rendered yet.",
+    paymentLoadingSdk: "Loading the PayPal button...",
+    paymentButtonHint:
+      "After payment is complete, we will send your guide details to the email you entered within a few hours.",
+    paymentError:
+      "We could not process the PayPal payment. Please check the configuration and sandbox app status.",
+    paymentCancelled:
+      "The payment was cancelled. A new order will be created if you try again.",
+    paymentCompleted:
+      "Payment has been completed. We will contact you at the email you entered within a few hours.",
+    paymentSuccessTitle: "Payment completed!",
+    paymentSuccessText:
+      "A local university student guide will contact you through the email you entered within 2 to 3 hours.",
+    paymentUnavailable:
+      "The PayPal button cannot be displayed in the current environment.",
+    nextTitle: "Recommended Next Steps",
+    nextSteps: [
+      "Have operations confirm customers who completed payment",
+      "Send the guide intro email manually within a few hours",
+      "Add the PayPal webhook and automatic email delivery last",
+    ],
+    noteTitle: "Current Scope",
+    noteTextLocal:
+      "Right now the flow only saves the survey locally and moves to the completion page. If browser data is cleared, the saved response disappears too.",
+    noteTextServer:
+      "The server save API and the PayPal/Resend routes are ready. Once account keys are added, the real payment flow can be connected.",
+    homeAction: "Back to home",
+    restartAction: "Fill out the survey again",
+    missingTitle: "We could not find the saved survey",
+    missingText:
+      "This response is not available in local browser storage, or it has already been removed. Please fill out the survey again.",
+    missingAction: "Go to survey",
+    loadErrorTitle: "Could not load the survey details",
+    loadErrorText:
+      "The saved server record could not be loaded, and no local browser copy was found either. Please finish the setup and try again.",
+  },
   ko: {
     brand: "tripagent",
     back: "랜딩으로 돌아가기",
@@ -218,6 +287,7 @@ export default function SurveyCompleteClient({
   initialLanguage,
   submissionId,
 }) {
+  const language = normalizeSiteLanguage(initialLanguage);
   const [submission, setSubmission] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loadMode, setLoadMode] = useState("idle");
@@ -289,7 +359,7 @@ export default function SurveyCompleteClient({
     };
   }, [submissionId]);
 
-  const content = completionContent[initialLanguage];
+  const content = completionContent[language];
   const isServerSubmission = loadMode === "server";
   const paymentStatus = submission?.paymentStatus ?? "pending_payment";
   const isPaid = paymentStatus === "paid";
@@ -307,7 +377,7 @@ export default function SurveyCompleteClient({
     loadPayPalSdk({
       clientId: PAYPAL_CLIENT_ID,
       currency: PAYPAL_CURRENCY,
-      locale: getPayPalLocale(initialLanguage),
+      locale: getPayPalLocale(language),
     })
       .then(() => {
         if (isMounted) {
@@ -325,7 +395,7 @@ export default function SurveyCompleteClient({
     return () => {
       isMounted = false;
     };
-  }, [canRenderPayPal, content.paymentError, initialLanguage]);
+  }, [canRenderPayPal, content.paymentError, language]);
 
   useEffect(() => {
     if (
@@ -433,7 +503,7 @@ export default function SurveyCompleteClient({
 
       <header className="survey-topbar">
         <div className="survey-brand-block">
-          <Link className="survey-back-link" href={`/?lang=${initialLanguage}`}>
+          <Link className="survey-back-link" href={`/?lang=${language}`}>
             {content.back}
           </Link>
           <div className="survey-brandmark">{content.brand}</div>
@@ -465,7 +535,7 @@ export default function SurveyCompleteClient({
             <div className="survey-complete-actions">
               <Link
                 className="survey-primary-button"
-                href={`/survey?lang=${initialLanguage}`}
+                href={`/survey?lang=${language}`}
               >
                 {content.restartAction}
               </Link>
@@ -481,7 +551,7 @@ export default function SurveyCompleteClient({
             <div className="survey-complete-actions">
               <Link
                 className="survey-primary-button"
-                href={`/survey?lang=${initialLanguage}`}
+                href={`/survey?lang=${language}`}
               >
                 {content.missingAction}
               </Link>
@@ -566,12 +636,12 @@ export default function SurveyCompleteClient({
             ) : null}
 
             <div className="survey-complete-actions">
-              <Link className="survey-primary-button" href={`/?lang=${initialLanguage}`}>
+              <Link className="survey-primary-button" href={`/?lang=${language}`}>
                 {content.homeAction}
               </Link>
               <Link
                 className="survey-secondary-link"
-                href={`/survey?lang=${initialLanguage}`}
+                href={`/survey?lang=${language}`}
               >
                 {content.restartAction}
               </Link>
