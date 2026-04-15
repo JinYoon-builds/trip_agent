@@ -32,9 +32,9 @@
   - PayPal order amount is recalculated on the server from `answers.guideDates`
 - The completion page is simplified for users:
   - travel summary first
-  - PayPal payment section after the summary
-  - no internal metadata like submission id, timestamps, or storage status
-- PayPal checkout is wired for sandbox and restricted to the PayPal wallet button only.
+  - manual payment section after the summary
+  - server submissions now show a WeChat Pay QR card, sender-name guidance, and next-step guidance
+- PayPal checkout routes still exist for the old sandbox flow, but the completion page is now pivoting away from the PayPal button UI.
 - A successful `create-order` call was verified against the sandbox PayPal app.
 - Supabase insert was verified against the `survey_submissions` table.
 - The paid-state UX on the completion page is now implemented:
@@ -66,6 +66,8 @@
 ## Important Runtime Notes
 
 - Local secrets are in `.env.local` and are intentionally not committed.
+- Manual payment UI now reads these public env vars when present:
+  - `NEXT_PUBLIC_MANUAL_PAYMENT_QR_IMAGE`
 - There are still 2 local screenshot files in the repo root that were not committed:
   - `paid-state-mobile.png`
   - `paid-state-mobile-final.png`
@@ -90,8 +92,8 @@
   - sends a paid notification email successfully from production
 - Completion page UI
   - shows travel summary
-  - shows guide-day-based PayPal pricing
-  - renders only the PayPal wallet button
+  - shows guide-day-based pricing
+  - renders the manual payment QR card and sender-name guidance for server submissions
 - Language switching
   - landing, survey, and completion pages all respond to `?lang=ko|zh|en`
 - Date input UX
@@ -117,7 +119,7 @@
 1. Decide the manual operations flow after payment:
    - where to check newly paid submissions
    - how to send the follow-up guide email manually
-2. Add a minimal operator-facing reference:
+2. Add a minimal operator-facing workflow note:
    - either Supabase table filter instructions
    - or a tiny admin page listing paid submissions
 3. Rotate sensitive keys that were exposed during MVP setup.

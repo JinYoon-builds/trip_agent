@@ -4,7 +4,11 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
 import { trackEvent } from "../../../lib/analytics";
-import { getPayPalLocale, normalizeSiteLanguage } from "../../../lib/language";
+import { normalizeSiteLanguage } from "../../../lib/language";
+import {
+  MANUAL_PAYMENT_METHOD,
+  MANUAL_PAYMENT_QR_IMAGE,
+} from "../../../lib/manual-payment";
 import {
   formatPaymentDisplayLabel,
   getGuideDayCountFromAnswers,
@@ -14,130 +18,73 @@ import {
   readSurveySubmission,
   saveSurveySubmission,
 } from "../../../lib/survey-local-storage";
-import {
-  captureRemotePayPalOrder,
-  createRemotePayPalOrder,
-  fetchRemoteSubmission,
-} from "../../../lib/submission-client";
-
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID ?? "";
-const PAYPAL_CURRENCY = process.env.NEXT_PUBLIC_PAYPAL_CURRENCY ?? "USD";
-
-function loadPayPalSdk({ clientId, currency, locale }) {
-  if (typeof window === "undefined") {
-    return Promise.reject(new Error("PayPal SDK can only load in the browser."));
-  }
-
-  if (window.paypal?.Buttons) {
-    return Promise.resolve(window.paypal);
-  }
-
-  const existingScript = document.querySelector("script[data-paypal-sdk='true']");
-
-  if (existingScript) {
-    return new Promise((resolve, reject) => {
-      existingScript.addEventListener("load", () => resolve(window.paypal), {
-        once: true,
-      });
-      existingScript.addEventListener(
-        "error",
-        () => reject(new Error("Failed to load PayPal SDK.")),
-        { once: true },
-      );
-    });
-  }
-
-  return new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    const params = new URLSearchParams({
-      "client-id": clientId,
-      components: "buttons",
-      currency,
-      intent: "capture",
-      locale,
-      "disable-funding": "card,credit,paylater,venmo",
-    });
-
-    script.src = `https://www.paypal.com/sdk/js?${params.toString()}`;
-    script.async = true;
-    script.dataset.paypalSdk = "true";
-    script.addEventListener("load", () => resolve(window.paypal), { once: true });
-    script.addEventListener(
-      "error",
-      () => reject(new Error("Failed to load PayPal SDK.")),
-      { once: true },
-    );
-    document.head.appendChild(script);
-  });
-}
+import { fetchRemoteSubmission } from "../../../lib/submission-client";
 
 const completionContent = {
   en: {
     brand: "liu-unnie",
     back: "Back to home",
-    heroKicker: "Survey Complete",
-    heroTitle: "You are almost done",
+    heroKicker: "Request Received",
+    heroTitle: "Complete the final payment step",
     heroSubtitle:
-      "Complete the PayPal payment and we will reach out to your email with your matched guide within a few hours.",
+      "Scan the WeChat Pay QR below, transfer the quoted amount, and we will review the payment before sending your guide details by email.",
     paidHeroTitle: "Payment completed",
     paidHeroSubtitle:
-      "A local university student guide will contact you through the email you entered within 2 to 3 hours.",
-    summaryKicker: "Travel Snapshot",
+      "We confirmed your transfer. A local university student guide will contact you through the email you entered within 2 to 3 hours.",
+    summaryKicker: "Trip Summary",
     summaryTitle: "Your Trip Details",
     summaryDescription:
-      "Review the details below, then complete your payment.",
+      "Review the details below, then complete the manual payment.",
     summaryDescriptionPaid:
       "Review your submitted trip details and current payment status below.",
     summaryPillLocal: "Preview",
-    summaryPillServer: "Ready to Pay",
+    summaryPillServer: "Awaiting Transfer",
     statusKicker: "Status",
     statusTitle: "Current Status",
     statusTextLocal:
       "This survey is temporarily stored only in the current browser. Until the backend flow is fully connected, you can use this state to review the experience.",
     statusTextServer:
-      "This survey has been saved on the server and is ready to continue into payment and operations handling.",
-    statusBadgeLocal: "Saved Locally",
-    statusBadgeServer: "Saved on Server",
+      "This survey has been saved on the server and is now waiting for your manual payment transfer.",
+    statusBadgeLocal: "Saved in Browser",
+    statusBadgeServer: "Request Received",
     requestKicker: "Submission",
     requestTitle: "Saved Record",
     requestIdLabel: "Saved ID",
-    submittedAtLabel: "Saved At",
-    paymentStatusPending: "Waiting for payment",
-    paymentStatusCreated: "Order created",
-    paymentStatusProcessing: "Processing approval",
+    submittedAtLabel: "Submitted At",
+    paymentStatusPending: "Awaiting transfer",
+    paymentStatusCreated: "Transfer submitted",
+    paymentStatusProcessing: "Waiting for manual review",
     paymentStatusPaid: "Payment completed",
-    paymentReadyLabel: "PayPal Payment",
+    paymentReadyLabel: "Manual payment",
     paymentBreakdown: (guideDayCount, discountPercent) =>
       discountPercent > 0
         ? `${guideDayCount} guide days selected · ${discountPercent}% discount applied`
         : `${guideDayCount} guide day selected · standard rate applied`,
-    paymentSdkMissing:
-      "The PayPal sandbox client id is missing, so the payment button cannot be rendered yet.",
-    paymentLoadingSdk: "Loading the PayPal button...",
-    paymentButtonHint:
-      "After payment is complete, we will send your guide details to the email you entered within a few hours.",
-    paymentError:
-      "We could not process the PayPal payment. Please check the configuration and sandbox app status.",
-    paymentCancelled:
-      "The payment was cancelled. A new order will be created if you try again.",
-    paymentCompleted:
-      "Payment has been completed. We will contact you at the email you entered within a few hours.",
+    manualPaymentTitle: "Pay with WeChat Pay",
+    manualPaymentDescription:
+      "Open WeChat Pay, scan the QR, and transfer the quoted amount. For faster matching, use the same sender name as the name on this request.",
+    manualPaymentSteps: [
+      "Scan the QR code with WeChat Pay.",
+      "Transfer the quoted amount shown on this page using the same sender name as the applicant name.",
+    ],
+    manualPaymentSenderNameLabel: "Sender name",
+    manualPaymentSenderNameHelp:
+      "Please use this same name as the sender name for the transfer.",
+    manualPaymentReviewNote:
+      "Once the transfer is confirmed, a local university student guide will contact you directly.",
     paymentSuccessTitle: "Payment completed!",
     paymentSuccessText:
-      "A local university student guide will contact you through the email you entered within 2 to 3 hours.",
-    paymentUnavailable:
-      "The PayPal button cannot be displayed in the current environment.",
-    nextTitle: "Recommended Next Steps",
+      "We confirmed the transfer. A local university student guide will contact you through the email you entered within 2 to 3 hours.",
+    nextTitle: "What Happens Next",
     nextSteps: [
-      "Have operations confirm customers who completed payment",
-      "Send the guide intro email manually within a few hours",
-      "Add the PayPal webhook and automatic email delivery last",
+      "We check the incoming transfer.",
+      "Once the transfer is confirmed, a local university student guide will contact you directly.",
     ],
-    noteTitle: "Current Scope",
+    noteTitle: "Before You Leave",
     noteTextLocal:
       "Right now the flow only saves the survey locally and moves to the completion page. If browser data is cleared, the saved response disappears too.",
     noteTextServer:
-      "The server save API and the PayPal/Resend routes are ready. Once account keys are added, the real payment flow can be connected.",
+      "Once the transfer is confirmed, we will send your guide introduction to the email you entered. You do not need to submit anything else unless we contact you.",
     homeAction: "Back to home",
     restartAction: "Fill out the survey again",
     missingTitle: "We could not find the saved survey",
@@ -151,69 +98,67 @@ const completionContent = {
   ko: {
     brand: "liu-unnie",
     back: "랜딩으로 돌아가기",
-    heroKicker: "Survey Complete",
-    heroTitle: "거의 완료되었습니다",
+    heroKicker: "설문 접수 완료",
+    heroTitle: "마지막 결제 단계만 남았습니다",
     heroSubtitle:
-      "PayPal 결제를 완료하면 입력한 이메일로 몇 시간 내 맞춤 가이드 안내를 보내드립니다.",
+      "아래 위챗페이 QR을 스캔해 안내된 금액을 입금하면, 운영팀이 확인 후 입력한 이메일로 가이드 안내를 보내드립니다.",
     paidHeroTitle: "결제가 완료되었습니다",
     paidHeroSubtitle:
-      "2~3시간 이내에 현지 대학생 가이드가 입력하신 이메일로 연락드릴 예정입니다.",
-    summaryKicker: "Travel Snapshot",
+      "입금 확인이 완료되었습니다. 2~3시간 이내에 현지 대학생 가이드가 입력하신 이메일로 연락드릴 예정입니다.",
+    summaryKicker: "여행 요약",
     summaryTitle: "입력한 여행 정보",
     summaryDescription:
-      "아래 내용을 확인한 뒤 결제를 마무리해 주세요.",
+      "아래 내용을 확인한 뒤 수동 결제를 진행해 주세요.",
     summaryDescriptionPaid:
       "입력한 여행 정보와 현재 결제 상태를 아래에서 확인해 주세요.",
     summaryPillLocal: "Preview",
-    summaryPillServer: "Ready to Pay",
+    summaryPillServer: "입금 확인 대기",
     statusKicker: "Status",
     statusTitle: "현재 상태",
     statusTextLocal:
       "이 설문은 현재 브라우저에만 임시 저장되어 있습니다. 새 설문 흐름이나 백엔드 연결 전까지는 이 상태를 기준으로 UX를 점검할 수 있습니다.",
     statusTextServer:
-      "이 설문은 서버에 접수되어 결제와 운영 확인 흐름을 이어붙일 준비가 된 상태입니다.",
-    statusBadgeLocal: "로컬 저장 완료",
-    statusBadgeServer: "서버 저장 완료",
+      "이 설문은 서버에 정상 접수되었고, 현재 수동 입금 확인을 기다리는 상태입니다.",
+    statusBadgeLocal: "브라우저 임시 저장",
+    statusBadgeServer: "신청 접수 완료",
     requestKicker: "Submission",
     requestTitle: "접수 정보",
     requestIdLabel: "저장 ID",
-    submittedAtLabel: "저장 시각",
-    paymentStatusPending: "결제 대기",
-    paymentStatusCreated: "주문 생성됨",
-    paymentStatusProcessing: "승인 처리 중",
+    submittedAtLabel: "접수 시각",
+    paymentStatusPending: "입금 확인 대기",
+    paymentStatusCreated: "입금 접수됨",
+    paymentStatusProcessing: "운영팀 확인 중",
     paymentStatusPaid: "결제 완료",
-    paymentReadyLabel: "PayPal 결제",
+    paymentReadyLabel: "수동 결제",
     paymentBreakdown: (guideDayCount, discountPercent) =>
       discountPercent > 0
         ? `가이드 ${guideDayCount}일 선택 · ${discountPercent}% 할인 적용`
         : `가이드 ${guideDayCount}일 선택 · 기본 요금 적용`,
-    paymentSdkMissing:
-      "PayPal sandbox client id가 아직 없어 결제 버튼을 렌더할 수 없습니다.",
-    paymentLoadingSdk: "PayPal 버튼을 불러오는 중입니다...",
-    paymentButtonHint:
-      "결제를 완료하면 입력한 이메일로 몇 시간 내 가이드 안내 메일을 보내드립니다.",
-    paymentError:
-      "PayPal 결제를 진행하지 못했습니다. 설정값과 sandbox 앱 상태를 확인해 주세요.",
-    paymentCancelled:
-      "결제가 취소되었습니다. 다시 시도하면 새 주문을 생성합니다.",
-    paymentCompleted:
-      "결제가 완료되었습니다. 입력한 이메일로 몇 시간 내 가이드 안내 메일을 보내드릴 예정입니다.",
+    manualPaymentTitle: "위챗페이로 결제하기",
+    manualPaymentDescription:
+      "위챗페이에서 QR을 스캔한 뒤, 이 페이지에 표시된 금액만큼 입금해 주세요. 빠른 확인을 위해 입금자명을 신청자명과 동일하게 맞춰 주세요.",
+    manualPaymentSteps: [
+      "위챗페이에서 아래 QR을 스캔해 주세요.",
+      "이 페이지에 표시된 예상 금액을 신청자명과 동일한 입금자명으로 보내 주세요.",
+    ],
+    manualPaymentSenderNameLabel: "입금자명",
+    manualPaymentSenderNameHelp:
+      "송금 시 입금자명을 이 이름과 동일하게 맞춰 주세요.",
+    manualPaymentReviewNote:
+      "입금이 확인되면 현지 대학생 가이드가 직접 연락드립니다.",
     paymentSuccessTitle: "결제가 완료되었습니다!",
     paymentSuccessText:
-      "2~3시간 이내에 현지 대학생 가이드가 입력하신 이메일로 연락드릴 예정입니다.",
-    paymentUnavailable:
-      "현재 환경에서는 PayPal 버튼을 표시할 수 없습니다.",
-    nextTitle: "다음에 붙이면 좋은 흐름",
+      "입금 확인이 완료되었습니다. 2~3시간 이내에 현지 대학생 가이드가 입력하신 이메일로 연락드릴 예정입니다.",
+    nextTitle: "다음 진행 방식",
     nextSteps: [
-      "결제 완료된 고객을 운영자가 확인하기",
-      "몇 시간 안에 가이드 안내 메일을 직접 보내기",
-      "마지막에 PayPal webhook과 자동 메일 발송 붙이기",
+      "운영팀이 입금 내역을 확인합니다.",
+      "입금이 확인되면 현지 대학생 가이드가 직접 연락드립니다.",
     ],
-    noteTitle: "현재 구현 범위",
+    noteTitle: "안내 사항",
     noteTextLocal:
       "설문 완료 후 로컬 저장과 완료 페이지 이동까지만 연결되어 있습니다. 브라우저 데이터를 지우면 저장 내용도 함께 사라집니다.",
     noteTextServer:
-      "서버 저장 API와 PayPal/Resend 연동 라우트는 준비되어 있습니다. 계정 키만 넣으면 실제 결제 플로우를 연결할 수 있습니다.",
+      "입금 확인이 끝나면 별도 요청 없이 입력한 이메일로 가이드 안내를 보내드립니다. 추가 확인이 필요한 경우에만 운영팀이 별도로 연락드립니다.",
     homeAction: "랜딩으로 돌아가기",
     restartAction: "설문 다시 작성하기",
     missingTitle: "저장된 설문을 찾지 못했습니다",
@@ -227,67 +172,65 @@ const completionContent = {
   zh: {
     brand: "liu-unnie",
     back: "返回落地页",
-    heroKicker: "Survey Complete",
-    heroTitle: "快完成了",
+    heroKicker: "问卷提交完成",
+    heroTitle: "只剩最后一步付款",
     heroSubtitle:
-      "完成 PayPal 支付后，我们会在几小时内把定制向导邮件发送到你填写的邮箱。",
+      "请扫描下方微信支付二维码并完成转账。我们确认到账后，会把向导信息发送到你填写的邮箱。",
     paidHeroTitle: "支付已完成",
     paidHeroSubtitle:
-      "2 到 3 小时内，当地大学生向导会通过你填写的邮箱联系你。",
-    summaryKicker: "Travel Snapshot",
+      "我们已经确认到账。2 到 3 小时内，当地大学生向导会通过你填写的邮箱联系你。",
+    summaryKicker: "行程摘要",
     summaryTitle: "你填写的旅行信息",
-    summaryDescription: "请确认以下内容，然后完成支付。",
+    summaryDescription: "请确认以下内容，然后完成手动付款。",
     summaryDescriptionPaid: "请在下方确认你填写的旅行信息和当前支付状态。",
     summaryPillLocal: "Preview",
-    summaryPillServer: "Ready to Pay",
+    summaryPillServer: "等待到账确认",
     statusKicker: "Status",
     statusTitle: "当前状态",
     statusTextLocal:
       "这份问卷目前只临时保存在当前浏览器中。在接入后端之前，可以先用这个流程验证整体体验。",
     statusTextServer:
-      "这份问卷已经保存到服务器，后续可以继续接入支付与运营确认流程。",
-    statusBadgeLocal: "已本地保存",
-    statusBadgeServer: "已保存到服务器",
+      "这份问卷已经保存到服务器，当前正在等待你完成手动转账。",
+    statusBadgeLocal: "已暂存到浏览器",
+    statusBadgeServer: "申请已接收",
     requestKicker: "Submission",
     requestTitle: "保存信息",
     requestIdLabel: "保存 ID",
-    submittedAtLabel: "保存时间",
-    paymentStatusPending: "等待支付",
-    paymentStatusCreated: "订单已创建",
-    paymentStatusProcessing: "支付处理中",
+    submittedAtLabel: "提交时间",
+    paymentStatusPending: "等待到账确认",
+    paymentStatusCreated: "已提交转账",
+    paymentStatusProcessing: "人工确认中",
     paymentStatusPaid: "支付完成",
-    paymentReadyLabel: "PayPal 支付",
+    paymentReadyLabel: "手动付款",
     paymentBreakdown: (guideDayCount, discountPercent) =>
       discountPercent > 0
         ? `已选择 ${guideDayCount} 天向导 · 已应用 ${discountPercent}% 折扣`
         : `已选择 ${guideDayCount} 天向导 · 按标准价格计算`,
-    paymentSdkMissing:
-      "还没有提供 PayPal sandbox client id，因此暂时无法渲染支付按钮。",
-    paymentLoadingSdk: "正在加载 PayPal 按钮...",
-    paymentButtonHint:
-      "完成支付后，我们会在几小时内把向导介绍邮件发送到你填写的邮箱。",
-    paymentError:
-      "暂时无法完成 PayPal 支付。请检查配置和 sandbox app 状态。",
-    paymentCancelled:
-      "支付已取消。再次尝试时会创建新的订单。",
-    paymentCompleted:
-      "支付已经完成。我们会在几小时内把向导介绍邮件发送到你填写的邮箱。",
+    manualPaymentTitle: "使用微信支付付款",
+    manualPaymentDescription:
+      "请打开微信支付扫描二维码，并按本页显示的金额转账。为了更快核对，请让付款人姓名与申请人姓名一致。",
+    manualPaymentSteps: [
+      "使用微信支付扫描下方二维码。",
+      "请按本页显示的金额转账，并尽量使用与申请人相同的付款人姓名。",
+    ],
+    manualPaymentSenderNameLabel: "付款人姓名",
+    manualPaymentSenderNameHelp:
+      "转账时请把付款人姓名设置为这个名字。",
+    manualPaymentReviewNote:
+      "到账确认后，当地大学生向导会直接联系你。",
     paymentSuccessTitle: "支付已完成！",
     paymentSuccessText:
-      "2 到 3 小时内，当地大学生向导会通过你填写的邮箱联系你。",
-    paymentUnavailable:
-      "当前环境无法显示 PayPal 按钮。",
-    nextTitle: "后续可以接上的流程",
+      "我们已经确认到账。2 到 3 小时内，当地大学生向导会通过你填写的邮箱联系你。",
+    nextTitle: "接下来会发生什么",
     nextSteps: [
-      "由运营确认已付款客户",
-      "在几小时内手动发送向导介绍邮件",
-      "最后再加 PayPal webhook 和自动发信",
+      "我们会确认到账记录。",
+      "到账确认后，当地大学生向导会直接联系你。",
     ],
-    noteTitle: "当前实现范围",
+    noteTitle: "提示",
     noteTextLocal:
       "目前只实现了完成问卷后本地保存并跳转到完成页。清除浏览器数据后，保存内容也会一起消失。",
     noteTextServer:
-      "服务器保存 API 与 PayPal/Resend 路由已经准备好。填入账号密钥后，就可以继续接入真实支付流程。",
+      "到账确认后，我们会把向导介绍邮件发送到你填写的邮箱。除非我们主动联系你，否则不需要再提交其他内容。",
     homeAction: "返回落地页",
     restartAction: "重新填写问卷",
     missingTitle: "未找到已保存的问卷",
@@ -300,6 +243,54 @@ const completionContent = {
   },
 };
 
+function formatSubmissionTimestamp(timestamp, language) {
+  if (!timestamp) {
+    return "-";
+  }
+
+  try {
+    return new Intl.DateTimeFormat(
+      language === "ko"
+        ? "ko-KR"
+        : language === "zh"
+          ? "zh-CN"
+          : "en-US",
+      {
+        year: "numeric",
+        month: "short",
+        day: "numeric",
+        hour: "numeric",
+        minute: "2-digit",
+      },
+    ).format(new Date(timestamp));
+  } catch {
+    return timestamp;
+  }
+}
+
+function getPaymentStatusLabel(content, paymentStatus) {
+  if (paymentStatus === "paid") {
+    return content.paymentStatusPaid;
+  }
+
+  if (paymentStatus === "payment_created") {
+    return content.paymentStatusCreated;
+  }
+
+  if (paymentStatus === "payment_pending") {
+    return content.paymentStatusProcessing;
+  }
+
+  if (
+    paymentStatus === "awaiting_manual_payment" ||
+    paymentStatus === "pending_payment"
+  ) {
+    return content.paymentStatusPending;
+  }
+
+  return content.paymentStatusPending;
+}
+
 export default function SurveyCompleteClient({
   initialLanguage,
   submissionId,
@@ -308,11 +299,6 @@ export default function SurveyCompleteClient({
   const [submission, setSubmission] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loadMode, setLoadMode] = useState("idle");
-  const [isPayPalReady, setIsPayPalReady] = useState(false);
-  const [paymentMessage, setPaymentMessage] = useState("");
-  const [paymentError, setPaymentError] = useState("");
-  const paypalContainerRef = useRef(null);
-  const paypalButtonsRef = useRef(null);
   const completeViewKeyRef = useRef("");
 
   useEffect(() => {
@@ -377,7 +363,7 @@ export default function SurveyCompleteClient({
 
   const content = completionContent[language];
   const isServerSubmission = loadMode === "server";
-  const paymentStatus = submission?.paymentStatus ?? "pending_payment";
+  const paymentStatus = submission?.paymentStatus ?? "awaiting_manual_payment";
   const isPaid = paymentStatus === "paid";
   const guideDayCount = getGuideDayCountFromAnswers(submission?.answers);
   const pricingQuote = getGuidePricingQuote({ guideDayCount });
@@ -388,8 +374,31 @@ export default function SurveyCompleteClient({
       currency: pricingQuote.currency,
       language,
     });
-  const canRenderPayPal =
-    isServerSubmission && Boolean(PAYPAL_CLIENT_ID) && !isPaid;
+  const applicantName =
+    typeof submission?.answers?.fullName === "string" &&
+    submission.answers.fullName.trim() !== ""
+      ? submission.answers.fullName.trim()
+      : "";
+  const paymentStatusLabel = getPaymentStatusLabel(content, paymentStatus);
+  const submittedAtText = formatSubmissionTimestamp(
+    submission?.submittedAt,
+    language,
+  );
+  const storageStatusLabel = isServerSubmission
+    ? content.statusBadgeServer
+    : content.statusBadgeLocal;
+  const paymentStageLabel = isPaid
+    ? content.paymentStatusPaid
+    : isServerSubmission
+      ? content.summaryPillServer
+      : content.summaryPillLocal;
+  const noteText = isServerSubmission
+    ? content.noteTextServer
+    : content.noteTextLocal;
+  const paymentDetailText =
+    isServerSubmission && !isPaid && applicantName
+      ? `${content.manualPaymentSenderNameLabel}: ${applicantName}`
+      : paymentStatusLabel;
 
   useEffect(() => {
     if (!hasLoaded) {
@@ -420,162 +429,6 @@ export default function SurveyCompleteClient({
     pricingQuote.currency,
     pricingQuote.totalAmount,
     submission,
-  ]);
-
-  useEffect(() => {
-    if (!canRenderPayPal) {
-      setIsPayPalReady(false);
-      return;
-    }
-
-    let isMounted = true;
-
-    loadPayPalSdk({
-      clientId: PAYPAL_CLIENT_ID,
-      currency: PAYPAL_CURRENCY,
-      locale: getPayPalLocale(language),
-    })
-      .then(() => {
-        if (isMounted) {
-          setIsPayPalReady(true);
-        }
-      })
-      .catch((error) => {
-        console.error(error);
-        trackEvent("payment_error", {
-          language,
-          error_stage: "sdk_load",
-        });
-
-        if (isMounted) {
-          setPaymentError(content.paymentError);
-        }
-      });
-
-    return () => {
-      isMounted = false;
-    };
-  }, [canRenderPayPal, content.paymentError, language]);
-
-  useEffect(() => {
-    if (
-      !canRenderPayPal ||
-      !isPayPalReady ||
-      !submission?.id ||
-      !paypalContainerRef.current ||
-      !window.paypal?.Buttons
-    ) {
-      return undefined;
-    }
-
-    paypalContainerRef.current.innerHTML = "";
-    setPaymentError("");
-
-    const buttons = window.paypal.Buttons({
-      fundingSource: window.paypal.FUNDING.PAYPAL,
-      style: {
-        color: "gold",
-        height: 48,
-        label: "paypal",
-        layout: "vertical",
-        shape: "pill",
-      },
-      createOrder: async () => {
-        setPaymentError("");
-        setPaymentMessage("");
-
-        const order = await createRemotePayPalOrder(submission.id);
-
-        trackEvent("payment_order_created", {
-          language,
-          guide_day_count: Number(order.guideDayCount ?? guideDayCount),
-          discount_percent: Number(order.discountPercent ?? pricingQuote.discountPercent),
-          amount: Number(order.amount ?? pricingQuote.totalAmount),
-          currency: order.currency ?? pricingQuote.currency,
-        });
-
-        setSubmission((prev) =>
-          prev
-            ? {
-                ...prev,
-                paymentStatus: "payment_created",
-                paymentAmount: order.amount,
-                paymentCurrency: order.currency,
-                paymentDisplayLabel: order.displayLabel || prev.paymentDisplayLabel,
-                paypalOrderId: order.orderId,
-              }
-            : prev,
-        );
-
-        return order.orderId;
-      },
-      onApprove: async (data) => {
-        setPaymentError("");
-        setPaymentMessage("");
-
-        const result = await captureRemotePayPalOrder(submission.id, data.orderID);
-        const nextSubmission = {
-          ...result.submission,
-          storageMode: "server",
-        };
-
-        trackEvent("payment_completed", {
-          language,
-          payment_status: nextSubmission.paymentStatus,
-          guide_day_count: Number(guideDayCount),
-          amount: Number(nextSubmission.paymentAmount ?? pricingQuote.totalAmount),
-          currency: nextSubmission.paymentCurrency ?? pricingQuote.currency,
-        });
-        setSubmission(nextSubmission);
-        saveSurveySubmission(nextSubmission);
-      },
-      onCancel: () => {
-        trackEvent("payment_cancelled", {
-          language,
-          guide_day_count: Number(guideDayCount),
-        });
-        setPaymentMessage(content.paymentCancelled);
-      },
-      onError: (error) => {
-        console.error(error);
-        trackEvent("payment_error", {
-          language,
-          error_stage: "button",
-        });
-        setPaymentError(content.paymentError);
-      },
-    });
-
-    paypalButtonsRef.current = buttons;
-
-    if (typeof buttons.isEligible === "function" && !buttons.isEligible()) {
-      setPaymentError(content.paymentUnavailable);
-      return undefined;
-    }
-
-    buttons.render(paypalContainerRef.current).catch((error) => {
-      console.error(error);
-      setPaymentError(content.paymentError);
-    });
-
-    return () => {
-      if (paypalButtonsRef.current?.close) {
-        paypalButtonsRef.current.close();
-      }
-
-      paypalButtonsRef.current = null;
-
-      if (paypalContainerRef.current) {
-        paypalContainerRef.current.innerHTML = "";
-      }
-    };
-  }, [
-    canRenderPayPal,
-    content.paymentCancelled,
-    content.paymentError,
-    content.paymentUnavailable,
-    isPayPalReady,
-    submission?.id,
   ]);
 
   return (
@@ -654,6 +507,14 @@ export default function SurveyCompleteClient({
               {isPaid ? content.summaryDescriptionPaid : content.summaryDescription}
             </p>
 
+            <div
+              className={`survey-status-pill ${
+                isServerSubmission ? "survey-status-pill-server" : ""
+              }`}
+            >
+              {storageStatusLabel}
+            </div>
+
             <div className="survey-complete-grid">
               {submission.summary.map((item) => (
                 <div className="survey-complete-summary-card" key={item.label}>
@@ -663,42 +524,79 @@ export default function SurveyCompleteClient({
               ))}
             </div>
 
-            {isServerSubmission ? (
-              <div className="survey-inline-payment">
-                <div className="survey-inline-payment-copy">
-                  <span className="survey-card-kicker">{content.paymentReadyLabel}</span>
-                  <strong>{paymentDisplayLabel}</strong>
-                  <p className="survey-payment-text">
-                    {content.paymentBreakdown(
-                      guideDayCount,
-                      pricingQuote.discountPercent,
-                    )}
-                  </p>
-                </div>
+            <div className="survey-inline-payment">
+              <div className="survey-inline-payment-copy">
+                <span className="survey-card-kicker">{content.paymentReadyLabel}</span>
+                <strong>{paymentDisplayLabel}</strong>
+                <p className="survey-payment-text">
+                  {content.paymentBreakdown(
+                    guideDayCount,
+                    pricingQuote.discountPercent,
+                  )}
+                </p>
               </div>
-            ) : null}
+              <div className="survey-inline-payment-status">
+                <div
+                  className={`survey-inline-payment-badge ${
+                    isPaid
+                      ? "survey-inline-payment-badge-paid"
+                      : isServerSubmission
+                        ? "survey-inline-payment-badge-server"
+                        : ""
+                  }`}
+                >
+                  {paymentStageLabel}
+                </div>
+                <span>{paymentDetailText}</span>
+                <small>
+                  {content.submittedAtLabel}: {submittedAtText}
+                </small>
+              </div>
+            </div>
 
-            {isServerSubmission && !isPaid && (PAYPAL_CLIENT_ID || paymentMessage || paymentError) ? (
-              <div className="survey-payment-shell">
-                {!PAYPAL_CLIENT_ID ? (
-                  <p className="survey-payment-helper">{content.paymentSdkMissing}</p>
-                ) : !isPayPalReady && !isPaid ? (
-                  <p className="survey-payment-helper">{content.paymentLoadingSdk}</p>
-                ) : isPaid ? null : (
-                  <div
-                    className="survey-paypal-button"
-                    ref={paypalContainerRef}
-                  />
-                )}
-                {!isPaid ? (
-                  <p className="survey-payment-helper">{content.paymentButtonHint}</p>
-                ) : null}
-                {paymentMessage ? (
-                  <p className="survey-payment-message">{paymentMessage}</p>
-                ) : null}
-                {paymentError ? (
-                  <p className="survey-submit-error">{paymentError}</p>
-                ) : null}
+            {isServerSubmission && !isPaid ? (
+              <div className="survey-payment-shell survey-manual-payment-shell">
+                <div className="survey-manual-payment-layout">
+                  <div className="survey-manual-payment-copy">
+                    <span className="survey-card-kicker">{content.paymentReadyLabel}</span>
+                    <strong>{content.manualPaymentTitle}</strong>
+                    <p className="survey-payment-text">
+                      {content.manualPaymentDescription}
+                    </p>
+                    <div className="survey-manual-payment-steps">
+                      {content.manualPaymentSteps.map((step, index) => (
+                        <div className="survey-manual-payment-step" key={step}>
+                          <span className="survey-manual-payment-step-index">
+                            {String(index + 1).padStart(2, "0")}
+                          </span>
+                          <p>{step}</p>
+                        </div>
+                      ))}
+                    </div>
+                    <p className="survey-payment-helper">
+                      {content.manualPaymentSenderNameHelp}
+                    </p>
+                    <p className="survey-payment-message">
+                      {content.manualPaymentReviewNote}
+                    </p>
+                  </div>
+                  <div className="survey-manual-payment-qr-card">
+                    <span className="survey-manual-payment-method">
+                      {MANUAL_PAYMENT_METHOD}
+                    </span>
+                    <img
+                      alt={`${MANUAL_PAYMENT_METHOD} QR`}
+                      className="survey-manual-payment-qr"
+                      src={MANUAL_PAYMENT_QR_IMAGE}
+                    />
+                    {applicantName ? (
+                      <div className="survey-manual-payment-reference-card">
+                        <span>{content.manualPaymentSenderNameLabel}</span>
+                        <strong>{applicantName}</strong>
+                      </div>
+                    ) : null}
+                  </div>
+                </div>
               </div>
             ) : null}
 
@@ -722,6 +620,25 @@ export default function SurveyCompleteClient({
                 </div>
               </div>
             ) : null}
+
+            {isServerSubmission ? (
+              <div className="survey-next-card survey-payment-shell">
+                <span className="survey-card-kicker">{content.nextTitle}</span>
+                <div className="survey-next-list">
+                  {content.nextSteps.map((step, index) => (
+                    <div className="survey-next-item" key={step}>
+                      <span>{String(index + 1).padStart(2, "0")}</span>
+                      <strong>{step}</strong>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ) : null}
+
+            <div className="survey-note-block">
+              <span className="survey-card-kicker">{content.noteTitle}</span>
+              <p>{noteText}</p>
+            </div>
 
             <div className="survey-complete-actions">
               <Link className="survey-primary-button" href={`/?lang=${language}`}>

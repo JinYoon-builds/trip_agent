@@ -1319,15 +1319,17 @@ img {
   background: rgba(255, 255, 255, 0.82);
 }
 
+.survey-manual-payment-shell {
+  background:
+    radial-gradient(circle at top right, rgba(255, 208, 154, 0.26), transparent 34%),
+    rgba(255, 255, 255, 0.92);
+}
+
 .survey-payment-helper,
 .survey-payment-text {
   margin: 18px 0 0;
   color: var(--muted);
   line-height: 1.65;
-}
-
-.survey-paypal-button {
-  margin-top: 16px;
 }
 
 .survey-payment-message {
@@ -1336,6 +1338,112 @@ img {
   font-size: 0.95rem;
   font-weight: 700;
   line-height: 1.6;
+}
+
+.survey-manual-payment-layout {
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(220px, 0.9fr);
+  gap: 22px;
+  align-items: start;
+}
+
+.survey-manual-payment-copy strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 1.15rem;
+  font-weight: 900;
+}
+
+.survey-manual-payment-steps {
+  display: grid;
+  gap: 12px;
+  margin-top: 18px;
+}
+
+.survey-manual-payment-step {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.76);
+}
+
+.survey-manual-payment-step-index {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 40px;
+  min-height: 40px;
+  padding: 0 10px;
+  border-radius: 999px;
+  background: rgba(255, 167, 56, 0.16);
+  color: #b86508;
+  font-size: 0.82rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
+}
+
+.survey-manual-payment-step p {
+  margin: 0;
+  color: var(--text);
+  line-height: 1.65;
+}
+
+.survey-manual-payment-qr-card {
+  display: grid;
+  gap: 14px;
+  padding: 18px;
+  border-radius: 22px;
+  background: linear-gradient(180deg, rgba(255, 255, 255, 0.94), rgba(249, 247, 255, 0.9));
+  border: 1px solid rgba(29, 27, 79, 0.08);
+}
+
+.survey-manual-payment-method {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 34px;
+  width: fit-content;
+  padding: 0 12px;
+  border-radius: 999px;
+  background: rgba(255, 167, 56, 0.16);
+  color: #b86508;
+  font-size: 0.82rem;
+  font-weight: 900;
+}
+
+.survey-manual-payment-qr {
+  display: block;
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: 20px;
+  background: #ffffff;
+  border: 1px solid rgba(29, 27, 79, 0.08);
+}
+
+.survey-manual-payment-reference-card {
+  padding: 14px 16px;
+  border-radius: 18px;
+  background: rgba(29, 27, 79, 0.04);
+}
+
+.survey-manual-payment-reference-card span {
+  display: block;
+  color: var(--muted);
+  font-size: 0.82rem;
+}
+
+.survey-manual-payment-reference-card strong {
+  display: block;
+  margin-top: 8px;
+  color: var(--text);
+  font-size: 1rem;
+  font-weight: 900;
+  letter-spacing: 0.08em;
 }
 
 .survey-paid-state {
@@ -1424,6 +1532,16 @@ img {
   color: #5c63df;
   font-size: 0.84rem;
   font-weight: 800;
+}
+
+.survey-inline-payment-badge-server {
+  background: rgba(255, 167, 56, 0.16);
+  color: #b86508;
+}
+
+.survey-inline-payment-badge-paid {
+  background: rgba(44, 140, 103, 0.16);
+  color: #1d7d57;
 }
 
 .survey-next-list {
@@ -1515,6 +1633,10 @@ img {
   .survey-inline-payment-status {
     justify-items: start;
     text-align: left;
+  }
+
+  .survey-manual-payment-layout {
+    grid-template-columns: 1fr;
   }
 
   .survey-paid-state {

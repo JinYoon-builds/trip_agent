@@ -8,7 +8,7 @@ create table if not exists public.survey_submissions (
   contact_email text not null,
   answers jsonb not null,
   summary jsonb not null default '[]'::jsonb,
-  payment_status text not null default 'pending_payment',
+  payment_status text not null default 'awaiting_manual_payment',
   payment_amount numeric(10,2),
   payment_currency text,
   payment_display_label text not null default '₩200,000',

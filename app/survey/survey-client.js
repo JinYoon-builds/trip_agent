@@ -1788,7 +1788,7 @@ export default function SurveyClient({ initialLanguage }) {
           currency: guidePricingQuote.currency,
           language,
         }),
-        paymentStatus: "pending_payment",
+        paymentStatus: "awaiting_manual_payment",
         storageMode: "local",
       };
       const didSave = saveSurveySubmission(localSubmission);
