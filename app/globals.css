@@ -1418,8 +1418,8 @@ img {
 .survey-manual-payment-qr {
   display: block;
   width: 100%;
-  aspect-ratio: 1;
-  object-fit: cover;
+  height: auto;
+  object-fit: contain;
   border-radius: 20px;
   background: #ffffff;
   border: 1px solid rgba(29, 27, 79, 0.08);
