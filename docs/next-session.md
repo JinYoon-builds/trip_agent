@@ -29,29 +29,21 @@
   - 1 day = `$89`
   - 2 days = `10%` discount
   - 3+ days = `20%` discount
-  - PayPal order amount is recalculated on the server from `answers.guideDates`
+  - the quoted amount is recalculated on the server from `answers.guideDates`
 - The completion page is simplified for users:
   - travel summary first
   - manual payment section after the summary
-  - server submissions now show a WeChat Pay QR card, sender-name guidance, and next-step guidance
-- PayPal checkout routes still exist for the old sandbox flow, but the completion page is now pivoting away from the PayPal button UI.
-- A successful `create-order` call was verified against the sandbox PayPal app.
+  - server submissions now show a full WeChat Pay QR card, sender-name guidance, and next-step guidance
+- PayPal checkout routes still exist in the repo, but the live completion page is now centered on the WeChat Pay manual-payment flow.
 - Supabase insert was verified against the `survey_submissions` table.
-- The paid-state UX on the completion page is now implemented:
-  - green success check block
-  - paid-specific hero copy
-  - no PayPal button after payment is completed
-- A full sandbox buyer flow was verified in the browser:
-  - submission moved to `payment_status = paid`
-  - completion page rendered the new paid-state UX correctly on mobile
 - After the survey/date input update, a fresh local test submission was also created successfully and the completion page opened correctly.
-- On April 15, 2026, the production environment was completed end-to-end:
+- On April 15, 2026, the production environment was updated end-to-end:
   - `liu-unnie.com` is connected to Vercel
   - the Resend sending domain is verified on `liu-unnie.com`
-  - Vercel production env vars for Supabase, PayPal, and Resend are now set
-  - a production sandbox payment was completed successfully
-  - the operator notification email arrived successfully
-  - the production submission row updated to `payment_status = paid`
+  - Vercel production env vars for Supabase and Resend are set for the current manual-payment flow
+  - a production survey submission email was sent successfully on submit
+  - the operator notification subject now includes the quoted amount and sender name
+  - the production completion page now renders the WeChat Pay manual-payment version
 
 ## Latest Decision
 
@@ -59,9 +51,10 @@
 - The product-facing brand name is now `liu-unnie`.
 - The production MVP stack is now connected:
   - Vercel domain: `liu-unnie.com`
-  - PayPal environment: `sandbox`
+  - payment collection UI: `WeChat Pay` manual QR flow
   - Resend sender: `liu-unnie <alerts@liu-unnie.com>`
   - operator notification target: `jin.yoon.builds@gmail.com`
+  - old production main state is preserved on remote branch `legacy-main`
 
 ## Important Runtime Notes
 
@@ -75,25 +68,23 @@
   - Supabase `service_role`
   - PayPal `client secret`
 - `NOTIFICATION_EMAIL` can now accept multiple recipients as a comma-separated list. Replace the current testing target with the final operator inbox list before live launch.
-- `PAYPAL_ENV` is still `sandbox`. Switch both client and server PayPal credentials together when moving to live.
+- There are several untracked local verification images and notes in the repo root; they were intentionally not committed.
 
 ## What Works Today
 
 - `POST /api/submissions`
   - saves survey data to Supabase
+  - sends an operator email on survey submission when Resend is configured
+  - operator email subject format: `설문 완료 / 결제금액 / 입금자명`
 - `GET /api/submissions/[id]`
   - fetches saved submission data
-- `POST /api/paypal/create-order`
-  - creates a sandbox PayPal order for a saved submission
-  - recomputes amount from selected guide dates
-- `POST /api/paypal/capture-order`
-  - captures an approved PayPal order and updates the submission to `paid`
 - Resend operator email delivery
-  - sends a paid notification email successfully from production
+  - production submit notification email was verified successfully
 - Completion page UI
   - shows travel summary
   - shows guide-day-based pricing
   - renders the manual payment QR card and sender-name guidance for server submissions
+  - uses the real WeChat Pay QR asset without image cropping
 - Language switching
   - landing, survey, and completion pages all respond to `?lang=ko|zh|en`
 - Date input UX
@@ -102,28 +93,29 @@
   - survey converts the selected trip range into tappable date chips for guide-day selection
 - Production domain and integrations
   - `liu-unnie.com` resolves to the Vercel production project
-  - production env vars are set for Supabase, PayPal sandbox, and Resend
-  - a production sandbox payment and email flow has already been verified once
+  - production env vars are set for Supabase and Resend
+  - a production survey submission and operator email flow has already been verified once
 
 ## What To Test First Tomorrow
 
-1. Re-run one more production sandbox payment to confirm repeatability.
+1. Re-run one more production survey submission to confirm repeatability.
 2. Check `survey_submissions` for the latest rows:
-   - `payment_status = paid`
-   - PayPal order and capture IDs present
-3. Confirm Resend delivery logs for the latest production payment.
+   - `payment_status = awaiting_manual_payment`
+   - `payment_amount` / `payment_display_label` match the selected guide dates
+3. Confirm Resend delivery logs for the latest production submit email.
 4. Decide whether `alerts@liu-unnie.com` should remain the sender or move to a dedicated support/ops sender.
 
 ## Next Work
 
-1. Decide the manual operations flow after payment:
-   - where to check newly paid submissions
-   - how to send the follow-up guide email manually
-2. Add a minimal operator-facing workflow note:
-   - either Supabase table filter instructions
-   - or a tiny admin page listing paid submissions
+1. Build a minimal operator admin page for manual payment checking.
+   - list recent submissions
+   - show sender name, quoted amount, contact email, submitted time, and payment status
+   - make it easy to filter `awaiting_manual_payment`
+2. Define the manual post-payment workflow.
+   - how ops marks a submission as payment-confirmed
+   - how the matched guide follow-up is tracked
 3. Rotate sensitive keys that were exposed during MVP setup.
-4. After the MVP is stable, add webhook reconciliation and optional Resend automation.
+4. Remove or archive the unused PayPal checkout path if the manual-payment direction is now final.
 5. Review the English copy quality once the core operator flow is settled.
 
 ## Useful Files
@@ -134,12 +126,11 @@
 - `app/survey/complete/survey-complete-client.js`
 - `app/api/submissions/route.js`
 - `app/api/submissions/[id]/route.js`
-- `app/api/paypal/create-order/route.js`
-- `app/api/paypal/capture-order/route.js`
 - `lib/submission-client.js`
 - `lib/language.js`
+- `lib/manual-payment.js`
+- `lib/resend.js`
 - `lib/supabase-admin.js`
-- `lib/paypal.js`
 - `supabase/schema.sql`
 - `docs/payments-mvp.md`
 
@@ -147,4 +138,4 @@
 
 - Landing: `http://localhost:3000/?lang=ko`
 - Survey: `http://localhost:3000/survey?lang=ko`
-- Completion example: `http://localhost:3000/survey/complete?id=365dfa59-6008-4e24-82f3-43baaf384e9c&lang=ko`
+- Completion example: `https://liu-unnie.com/survey/complete?id=653381b1-0e16-4736-a6bf-9d9bfd8ab180&lang=ko`
