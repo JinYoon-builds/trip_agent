@@ -3,6 +3,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import { trackEvent } from "../../../lib/analytics";
 import { getPayPalLocale, normalizeSiteLanguage } from "../../../lib/language";
 import {
   formatPaymentDisplayLabel,
@@ -312,6 +313,7 @@ export default function SurveyCompleteClient({
   const [paymentError, setPaymentError] = useState("");
   const paypalContainerRef = useRef(null);
   const paypalButtonsRef = useRef(null);
+  const completeViewKeyRef = useRef("");
 
   useEffect(() => {
     let isMounted = true;
@@ -390,6 +392,37 @@ export default function SurveyCompleteClient({
     isServerSubmission && Boolean(PAYPAL_CLIENT_ID) && !isPaid;
 
   useEffect(() => {
+    if (!hasLoaded) {
+      return;
+    }
+
+    const viewKey = `${loadMode}:${submission?.id ?? "none"}`;
+
+    if (completeViewKeyRef.current === viewKey) {
+      return;
+    }
+
+    completeViewKeyRef.current = viewKey;
+
+    trackEvent("survey_complete_view", {
+      language,
+      storage_mode: loadMode,
+      payment_status: submission?.paymentStatus ?? "missing",
+      guide_day_count: submission ? Number(guideDayCount) : undefined,
+      amount: submission ? Number(pricingQuote.totalAmount) : undefined,
+      currency: submission ? pricingQuote.currency : undefined,
+    });
+  }, [
+    guideDayCount,
+    hasLoaded,
+    language,
+    loadMode,
+    pricingQuote.currency,
+    pricingQuote.totalAmount,
+    submission,
+  ]);
+
+  useEffect(() => {
     if (!canRenderPayPal) {
       setIsPayPalReady(false);
       return;
@@ -409,6 +442,10 @@ export default function SurveyCompleteClient({
       })
       .catch((error) => {
         console.error(error);
+        trackEvent("payment_error", {
+          language,
+          error_stage: "sdk_load",
+        });
 
         if (isMounted) {
           setPaymentError(content.paymentError);
@@ -449,6 +486,14 @@ export default function SurveyCompleteClient({
 
         const order = await createRemotePayPalOrder(submission.id);
 
+        trackEvent("payment_order_created", {
+          language,
+          guide_day_count: Number(order.guideDayCount ?? guideDayCount),
+          discount_percent: Number(order.discountPercent ?? pricingQuote.discountPercent),
+          amount: Number(order.amount ?? pricingQuote.totalAmount),
+          currency: order.currency ?? pricingQuote.currency,
+        });
+
         setSubmission((prev) =>
           prev
             ? {
@@ -474,14 +519,29 @@ export default function SurveyCompleteClient({
           storageMode: "server",
         };
 
+        trackEvent("payment_completed", {
+          language,
+          payment_status: nextSubmission.paymentStatus,
+          guide_day_count: Number(guideDayCount),
+          amount: Number(nextSubmission.paymentAmount ?? pricingQuote.totalAmount),
+          currency: nextSubmission.paymentCurrency ?? pricingQuote.currency,
+        });
         setSubmission(nextSubmission);
         saveSurveySubmission(nextSubmission);
       },
       onCancel: () => {
+        trackEvent("payment_cancelled", {
+          language,
+          guide_day_count: Number(guideDayCount),
+        });
         setPaymentMessage(content.paymentCancelled);
       },
       onError: (error) => {
         console.error(error);
+        trackEvent("payment_error", {
+          language,
+          error_stage: "button",
+        });
         setPaymentError(content.paymentError);
       },
     });

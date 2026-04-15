@@ -1,9 +1,10 @@
 "use client";
 
 import Link from "next/link";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import { trackEvent } from "../../lib/analytics";
 import { normalizeSiteLanguage } from "../../lib/language";
 import {
   formatPaymentDisplayLabel,
@@ -21,6 +22,8 @@ const LANGUAGE_LOCALES = {
   ko: "ko-KR",
   zh: "zh-CN",
 };
+
+const SURVEY_ANALYTICS_ID = "guide_matching_v1";
 
 const surveyContent = {
   en: {
@@ -1080,6 +1083,14 @@ export default function SurveyClient({ initialLanguage }) {
   const [answers, setAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const trackedFieldStartsRef = useRef(new Set());
+  const lastDateRangeKeyRef = useRef("");
+  const lastStepViewKeyRef = useRef("");
+  const lastInteractionRef = useRef(null);
+  const hasStartedRef = useRef(false);
+  const hasSubmittedRef = useRef(false);
+  const hasTrackedAbandonRef = useRef(false);
+  const abandonContextRef = useRef(null);
 
   useEffect(() => {
     setLanguage(normalizeSiteLanguage(initialLanguage));
@@ -1134,6 +1145,40 @@ export default function SurveyClient({ initialLanguage }) {
 
     return map;
   }, [steps]);
+  const analyticsFieldMap = useMemo(() => {
+    const map = new Map();
+
+    steps.forEach((step, stepIndex) => {
+      step.fields.forEach((field) => {
+        const meta = {
+          field,
+          step,
+          stepIndex,
+        };
+
+        if (field.id) {
+          map.set(field.id, meta);
+        }
+
+        if (field.startId) {
+          map.set(field.startId, {
+            ...meta,
+            inputTarget: "start",
+          });
+        }
+
+        if (field.endId) {
+          map.set(field.endId, {
+            ...meta,
+            inputTarget: "end",
+          });
+        }
+      });
+    });
+
+    return map;
+  }, [steps]);
+  const currentStepId = currentStep?.id ?? "";
   const selectedGuideDates = getGuideDatesFromAnswers(answers);
   const selectedGuideDayCount = selectedGuideDates.length;
   const livePricingQuote =
@@ -1160,48 +1205,257 @@ export default function SurveyClient({ initialLanguage }) {
     language,
   });
 
+  useEffect(() => {
+    if (!currentStep) {
+      return;
+    }
+
+    const stepViewKey = `${language}:${currentStep.id}:${currentStepIndex}`;
+
+    if (lastStepViewKeyRef.current === stepViewKey) {
+      return;
+    }
+
+    lastStepViewKeyRef.current = stepViewKey;
+
+    if (currentStepIndex > 0) {
+      hasStartedRef.current = true;
+    }
+
+    trackEvent("survey_step_view", {
+      survey_id: SURVEY_ANALYTICS_ID,
+      language,
+      step_id: currentStep.id,
+      step_number: currentStepIndex + 1,
+      visible_field_count: visibleFields.length,
+      answered_field_count: answeredCurrentStep,
+    });
+  }, [
+    answeredCurrentStep,
+    currentStep,
+    currentStepId,
+    currentStepIndex,
+    language,
+    visibleFields.length,
+  ]);
+
+  useEffect(() => {
+    abandonContextRef.current = {
+      answeredFieldCount: answeredOverall,
+      currentStepId,
+      currentStepNumber: currentStepIndex + 1,
+      hasStarted: hasStartedRef.current || answeredOverall > 0 || currentStepIndex > 0,
+      hasSubmitted: hasSubmittedRef.current,
+      lastInteraction: lastInteractionRef.current,
+      language,
+      totalFieldCount: totalFields,
+      visibleFieldCount: visibleFields.length,
+    };
+  }, [
+    answeredOverall,
+    currentStepId,
+    currentStepIndex,
+    language,
+    totalFields,
+    visibleFields.length,
+  ]);
+
+  useEffect(() => {
+    const trackSurveyAbandon = (transportType) => {
+      const context = abandonContextRef.current;
+
+      if (
+        hasTrackedAbandonRef.current ||
+        hasSubmittedRef.current ||
+        !context ||
+        context.hasSubmitted ||
+        !context.hasStarted
+      ) {
+        return;
+      }
+
+      hasTrackedAbandonRef.current = true;
+      trackEvent("survey_abandon", {
+        survey_id: SURVEY_ANALYTICS_ID,
+        language: context.language,
+        step_id: context.currentStepId,
+        step_number: context.currentStepNumber,
+        answered_field_count: context.answeredFieldCount,
+        total_field_count: context.totalFieldCount,
+        visible_field_count: context.visibleFieldCount,
+        last_field_id: context.lastInteraction?.fieldId ?? "",
+        last_field_kind: context.lastInteraction?.fieldKind ?? "",
+        transport_type: transportType,
+      });
+    };
+
+    const handlePageHide = () => {
+      trackSurveyAbandon("beacon");
+    };
+
+    window.addEventListener("pagehide", handlePageHide);
+
+    return () => {
+      window.removeEventListener("pagehide", handlePageHide);
+
+      if (process.env.NODE_ENV === "production") {
+        trackSurveyAbandon("navigation");
+      }
+    };
+  }, []);
+
+  const trackSurveyFieldInteraction = ({
+    rawFieldId,
+    interactionType,
+    isComplete,
+    selectionCount,
+  }) => {
+    const meta = analyticsFieldMap.get(rawFieldId);
+
+    if (!meta) {
+      return;
+    }
+
+    hasStartedRef.current = true;
+    lastInteractionRef.current = {
+      fieldId: meta.field.id,
+      fieldKind: meta.field.kind,
+      stepId: meta.step.id,
+      stepNumber: meta.stepIndex + 1,
+    };
+
+    trackEvent("survey_field_interaction", {
+      survey_id: SURVEY_ANALYTICS_ID,
+      language,
+      step_id: meta.step.id,
+      step_number: meta.stepIndex + 1,
+      field_id: meta.field.id,
+      field_kind: meta.field.kind,
+      interaction_type: interactionType,
+      input_target: meta.inputTarget ?? "",
+      selection_count: selectionCount,
+      is_complete: Boolean(isComplete),
+    });
+  };
+
   const handleLanguageChange = (nextLanguage) => {
     const normalizedLanguage = normalizeSiteLanguage(nextLanguage);
+
+    trackEvent("language_switch", {
+      component: "survey",
+      from_language: language,
+      to_language: normalizedLanguage,
+    });
+
     setLanguage(normalizedLanguage);
     router.replace(`${pathname}?lang=${normalizedLanguage}`, { scroll: false });
   };
 
   const handleTextChange = (fieldId, value) => {
     setSubmitError("");
-    setAnswers((prev) => ({
-      ...prev,
+    const nextAnswers = {
+      ...answers,
       [fieldId]: value,
-    }));
+    };
+    const meta = analyticsFieldMap.get(fieldId);
+
+    setAnswers(nextAnswers);
+
+    if (!meta) {
+      return;
+    }
+
+    if (meta.field.kind === "datetimeRange") {
+      const nextRangeKey = isValidDateRange(
+        nextAnswers[meta.field.startId],
+        nextAnswers[meta.field.endId],
+      )
+        ? `${nextAnswers[meta.field.startId]}:${nextAnswers[meta.field.endId]}`
+        : "";
+
+      if (!nextRangeKey) {
+        lastDateRangeKeyRef.current = "";
+        return;
+      }
+
+      if (lastDateRangeKeyRef.current === nextRangeKey) {
+        return;
+      }
+
+      lastDateRangeKeyRef.current = nextRangeKey;
+      trackSurveyFieldInteraction({
+        rawFieldId: fieldId,
+        interactionType: "date_range_set",
+        isComplete: true,
+        selectionCount: getTravelDateValues(
+          nextAnswers[meta.field.startId],
+          nextAnswers[meta.field.endId],
+        ).length,
+      });
+      return;
+    }
+
+    const normalizedValue =
+      typeof value === "string" ? value.trim() : String(value ?? "").trim();
+
+    if (!normalizedValue) {
+      return;
+    }
+
+    const onceKey = `${fieldId}:started`;
+
+    if (trackedFieldStartsRef.current.has(onceKey)) {
+      return;
+    }
+
+    trackedFieldStartsRef.current.add(onceKey);
+    trackSurveyFieldInteraction({
+      rawFieldId: fieldId,
+      interactionType:
+        meta.field.kind === "range" ? "range_started" : "input_started",
+      isComplete: isFieldAnswered(meta.field, nextAnswers),
+    });
   };
 
   const handleSingleChange = (fieldId, value) => {
     setSubmitError("");
-    setAnswers((prev) => ({
-      ...prev,
+    const nextAnswers = {
+      ...answers,
       [fieldId]: value,
-    }));
+    };
+
+    setAnswers(nextAnswers);
+    trackSurveyFieldInteraction({
+      rawFieldId: fieldId,
+      interactionType: "option_selected",
+      isComplete: true,
+      selectionCount: 1,
+    });
   };
 
   const handleMultiToggle = (fieldId, value, maxSelections) => {
     setSubmitError("");
-    setAnswers((prev) => {
-      const currentValues = Array.isArray(prev[fieldId]) ? prev[fieldId] : [];
+    const currentValues = Array.isArray(answers[fieldId]) ? answers[fieldId] : [];
+    const isSelected = currentValues.includes(value);
 
-      if (currentValues.includes(value)) {
-        return {
-          ...prev,
-          [fieldId]: currentValues.filter((item) => item !== value),
-        };
-      }
+    if (maxSelections && !isSelected && currentValues.length >= maxSelections) {
+      return;
+    }
 
-      if (maxSelections && currentValues.length >= maxSelections) {
-        return prev;
-      }
+    const nextValues = isSelected
+      ? currentValues.filter((item) => item !== value)
+      : [...currentValues, value];
+    const nextAnswers = {
+      ...answers,
+      [fieldId]: nextValues,
+    };
 
-      return {
-        ...prev,
-        [fieldId]: [...currentValues, value],
-      };
+    setAnswers(nextAnswers);
+    trackSurveyFieldInteraction({
+      rawFieldId: fieldId,
+      interactionType: isSelected ? "option_removed" : "option_added",
+      isComplete: nextValues.length > 0,
+      selectionCount: nextValues.length,
     });
   };
 
@@ -1294,9 +1548,35 @@ export default function SurveyClient({ initialLanguage }) {
   };
 
   const handleSubmit = async () => {
+    const guidePricingQuote = getGuidePricingQuote({
+      guideDayCount: getGuideDayCountFromAnswers(answers),
+    });
+
+    trackEvent("survey_submit_attempt", {
+      survey_id: SURVEY_ANALYTICS_ID,
+      language,
+      step_id: currentStepId,
+      step_number: currentStepIndex + 1,
+      answered_field_count: answeredOverall,
+      total_field_count: totalFields,
+    });
+
     const missingRequiredField = findFirstMissingRequiredField(steps, answers);
 
     if (missingRequiredField) {
+      const missingFieldMeta = analyticsFieldMap.get(missingRequiredField.fieldId);
+
+      trackEvent("survey_validation_error", {
+        survey_id: SURVEY_ANALYTICS_ID,
+        language,
+        step_id: missingFieldMeta?.step.id ?? "",
+        step_number:
+          typeof missingRequiredField.stepIndex === "number"
+            ? missingRequiredField.stepIndex + 1
+            : undefined,
+        field_id: missingRequiredField.fieldId,
+        validation_reason: "required_missing",
+      });
       setCurrentStepIndex(missingRequiredField.stepIndex);
       setSubmitError(content.requiredFieldError);
       return;
@@ -1306,6 +1586,14 @@ export default function SurveyClient({ initialLanguage }) {
       typeof answers.contactEmail === "string" ? answers.contactEmail.trim() : "";
 
     if (!isValidEmail(contactEmail)) {
+      trackEvent("survey_validation_error", {
+        survey_id: SURVEY_ANALYTICS_ID,
+        language,
+        step_id: "basicInformation",
+        step_number: 1,
+        field_id: "contactEmail",
+        validation_reason: "invalid_email",
+      });
       setCurrentStepIndex(0);
       setSubmitError(content.emailRequiredError);
       return;
@@ -1334,6 +1622,22 @@ export default function SurveyClient({ initialLanguage }) {
       }
 
       if (submission?.id) {
+        hasSubmittedRef.current = true;
+        abandonContextRef.current = {
+          ...abandonContextRef.current,
+          hasSubmitted: true,
+        };
+        trackEvent("survey_submit_success", {
+          survey_id: SURVEY_ANALYTICS_ID,
+          language,
+          storage_mode: "server",
+          answered_field_count: answeredOverall,
+          total_field_count: totalFields,
+          guide_day_count: Number(guidePricingQuote.guideDayCount),
+          discount_percent: Number(guidePricingQuote.discountPercent),
+          amount: Number(guidePricingQuote.totalAmount),
+          currency: guidePricingQuote.currency,
+        });
         saveSurveySubmission({
           ...submission,
           storageMode: "server",
@@ -1343,9 +1647,6 @@ export default function SurveyClient({ initialLanguage }) {
       }
 
       const submissionId = createSurveySubmissionId();
-      const pricingQuote = getGuidePricingQuote({
-        guideDayCount: getGuideDayCountFromAnswers(answers),
-      });
       const localSubmission = {
         id: submissionId,
         language,
@@ -1356,11 +1657,11 @@ export default function SurveyClient({ initialLanguage }) {
         },
         summary: submissionPayload.summary,
         submittedAt: new Date().toISOString(),
-        paymentAmount: pricingQuote.totalAmount,
-        paymentCurrency: pricingQuote.currency,
+        paymentAmount: guidePricingQuote.totalAmount,
+        paymentCurrency: guidePricingQuote.currency,
         paymentDisplayLabel: formatPaymentDisplayLabel({
-          amount: pricingQuote.totalAmount,
-          currency: pricingQuote.currency,
+          amount: guidePricingQuote.totalAmount,
+          currency: guidePricingQuote.currency,
           language,
         }),
         paymentStatus: "pending_payment",
@@ -1372,9 +1673,31 @@ export default function SurveyClient({ initialLanguage }) {
         throw new Error("Failed to save submission locally.");
       }
 
+      hasSubmittedRef.current = true;
+      abandonContextRef.current = {
+        ...abandonContextRef.current,
+        hasSubmitted: true,
+      };
+      trackEvent("survey_submit_success", {
+        survey_id: SURVEY_ANALYTICS_ID,
+        language,
+        storage_mode: "local",
+        answered_field_count: answeredOverall,
+        total_field_count: totalFields,
+        guide_day_count: Number(guidePricingQuote.guideDayCount),
+        discount_percent: Number(guidePricingQuote.discountPercent),
+        amount: Number(guidePricingQuote.totalAmount),
+        currency: guidePricingQuote.currency,
+      });
       router.push(`/survey/complete?id=${submissionId}&lang=${language}`);
     } catch (error) {
       console.error(error);
+      trackEvent("survey_submit_error", {
+        survey_id: SURVEY_ANALYTICS_ID,
+        language,
+        step_id: currentStepId,
+        step_number: currentStepIndex + 1,
+      });
       setSubmitError(content.submitError);
       setIsSubmitting(false);
     }

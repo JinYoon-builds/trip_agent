@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
+import { trackEvent } from "../lib/analytics";
 import { normalizeSiteLanguage } from "../lib/language";
 
 const translations = {
@@ -63,7 +64,15 @@ export default function HomeClient({ initialLanguage }) {
   const t = translations[language];
 
   const handleLanguageChange = (nextLanguage) => {
-    router.replace(`${pathname}?lang=${normalizeSiteLanguage(nextLanguage)}`, {
+    const normalizedNextLanguage = normalizeSiteLanguage(nextLanguage);
+
+    trackEvent("language_switch", {
+      component: "landing",
+      from_language: language,
+      to_language: normalizedNextLanguage,
+    });
+
+    router.replace(`${pathname}?lang=${normalizedNextLanguage}`, {
       scroll: false,
     });
   };
@@ -119,7 +128,16 @@ export default function HomeClient({ initialLanguage }) {
           <p>{t.description}</p>
 
           <div className="hero-cta-row">
-            <Link className="hero-cta-button" href={`/survey?lang=${language}`}>
+            <Link
+              className="hero-cta-button"
+              href={`/survey?lang=${language}`}
+              onClick={() =>
+                trackEvent("landing_cta_click", {
+                  component: "hero_primary",
+                  language,
+                })
+              }
+            >
               {t.primaryButton}
             </Link>
           </div>
