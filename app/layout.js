@@ -7,7 +7,7 @@ const GA_MEASUREMENT_ID =
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ?? "";
 
 export const metadata = {
-  title: "lie-unnie",
+  title: "liu-unnie",
   description: "Private remote tourism guide matching service for Chinese travelers in Korea.",
 };
 

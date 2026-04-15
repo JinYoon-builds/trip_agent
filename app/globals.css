@@ -909,6 +909,32 @@ img {
   border-color: rgba(110, 119, 255, 0.22);
 }
 
+.survey-checkbox-field {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 18px 20px;
+  border: 1px solid rgba(29, 27, 79, 0.08);
+  border-radius: 18px;
+  background: rgba(255, 255, 255, 0.92);
+  cursor: pointer;
+}
+
+.survey-checkbox-input {
+  width: 18px;
+  height: 18px;
+  margin-top: 2px;
+  accent-color: #6e77ff;
+  flex: 0 0 auto;
+}
+
+.survey-checkbox-field span {
+  color: var(--text);
+  font-size: 0.95rem;
+  font-weight: 600;
+  line-height: 1.6;
+}
+
 .survey-range-grid {
   display: grid;
   grid-template-columns: repeat(2, minmax(0, 1fr));

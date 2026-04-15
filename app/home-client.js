@@ -9,7 +9,7 @@ import { normalizeSiteLanguage } from "../lib/language";
 
 const translations = {
   en: {
-    logo: "lie-unnie",
+    logo: "liu-unnie",
     announce: "Private guide matching is live",
     titleLine1: "Travel Korea with",
     titleLine2: "your own local guide",
@@ -22,7 +22,7 @@ const translations = {
     statTertiary: "Preference-based 1:1 matching",
   },
   ko: {
-    logo: "lie-unnie",
+    logo: "liu-unnie",
     announce: "프라이빗 가이드 매칭 오픈",
     titleLine1: "한국 여행의 즐거움을",
     titleLine2: "나만의 가이드와",
@@ -35,7 +35,7 @@ const translations = {
     statTertiary: "취향 기반 1:1 매칭",
   },
   zh: {
-    logo: "lie-unnie",
+    logo: "liu-unnie",
     announce: "私人向导匹配已开启",
     titleLine1: "重新发现",
     titleLine2: "韩国旅行的乐趣",

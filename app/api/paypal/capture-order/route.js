@@ -46,7 +46,17 @@ export async function POST(request) {
 
     const captureResult = await capturePayPalOrder(orderId);
     const captureDetails = extractCaptureDetails(captureResult);
+    const nextAnswers =
+      submission.answers && typeof submission.answers === "object"
+        ? {
+            ...submission.answers,
+            ...(captureDetails.payerEmail
+              ? { paypalPayerEmail: captureDetails.payerEmail }
+              : {}),
+          }
+        : submission.answers;
     const paidSubmission = await updateSurveySubmission(submissionId, {
+      answers: nextAnswers,
       paypal_order_id: captureDetails.orderId || orderId,
       paypal_capture_id: captureDetails.captureId || null,
       payment_amount: captureDetails.amount,

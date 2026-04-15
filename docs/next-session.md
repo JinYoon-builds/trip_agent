@@ -45,18 +45,23 @@
   - submission moved to `payment_status = paid`
   - completion page rendered the new paid-state UX correctly on mobile
 - After the survey/date input update, a fresh local test submission was also created successfully and the completion page opened correctly.
+- On April 15, 2026, the production environment was completed end-to-end:
+  - `liu-unnie.com` is connected to Vercel
+  - the Resend sending domain is verified on `liu-unnie.com`
+  - Vercel production env vars for Supabase, PayPal, and Resend are now set
+  - a production sandbox payment was completed successfully
+  - the operator notification email arrived successfully
+  - the production submission row updated to `payment_status = paid`
 
 ## Latest Decision
 
-- On April 14, 2026, the team decided to pause domain work until the meeting confirms the final domain name.
 - On April 15, 2026, the domain decision was finalized as `liu-unnie.com`.
-- The product-facing brand name is now `lie-unnie`.
-- Resume order after the brand/domain update:
-  - reflect `lie-unnie` across the product UI and integration copy
-  - purchase or connect `liu-unnie.com` on Vercel
-  - register and verify the sending subdomain in Resend
-  - set email env vars
-  - run the payment flow again and confirm the operator notification email arrives
+- The product-facing brand name is now `liu-unnie`.
+- The production MVP stack is now connected:
+  - Vercel domain: `liu-unnie.com`
+  - PayPal environment: `sandbox`
+  - Resend sender: `liu-unnie <alerts@liu-unnie.com>`
+  - operator notification target: `jin.yoon.builds@gmail.com`
 
 ## Important Runtime Notes
 
@@ -67,8 +72,8 @@
 - The following sensitive keys were pasted into chat during setup and should be rotated after this MVP round:
   - Supabase `service_role`
   - PayPal `client secret`
-- Resend notification wiring exists in code, but real email sending is still blocked until a sending domain is set up.
-- `NOTIFICATION_EMAIL` is only a temporary local testing target. Final team lead recipient should be set after the domain/email setup is decided.
+- `NOTIFICATION_EMAIL` can now accept multiple recipients as a comma-separated list. Replace the current testing target with the final operator inbox list before live launch.
+- `PAYPAL_ENV` is still `sandbox`. Switch both client and server PayPal credentials together when moving to live.
 
 ## What Works Today
 
@@ -81,6 +86,8 @@
   - recomputes amount from selected guide dates
 - `POST /api/paypal/capture-order`
   - captures an approved PayPal order and updates the submission to `paid`
+- Resend operator email delivery
+  - sends a paid notification email successfully from production
 - Completion page UI
   - shows travel summary
   - shows guide-day-based PayPal pricing
@@ -91,31 +98,31 @@
   - survey uses native date pickers for trip dates instead of free-text travel-date input
 - Guide date UX
   - survey converts the selected trip range into tappable date chips for guide-day selection
+- Production domain and integrations
+  - `liu-unnie.com` resolves to the Vercel production project
+  - production env vars are set for Supabase, PayPal sandbox, and Resend
+  - a production sandbox payment and email flow has already been verified once
 
 ## What To Test First Tomorrow
 
-1. Buy and connect a sending domain first.
-2. Use the finalized domain: `liu-unnie.com`.
-3. After purchase or transfer, connect it to the production project on Vercel.
-4. In Resend, verify a sending subdomain such as `send.liu-unnie.com`.
-5. Set:
-   - `RESEND_API_KEY`
-   - `EMAIL_FROM=lie-unnie <alerts@send.liu-unnie.com>`
-   - `NOTIFICATION_EMAIL=<team lead email>`
-6. Re-run the PayPal sandbox payment flow and confirm the operator notification email arrives.
+1. Re-run one more production sandbox payment to confirm repeatability.
+2. Check `survey_submissions` for the latest rows:
+   - `payment_status = paid`
+   - PayPal order and capture IDs present
+3. Confirm Resend delivery logs for the latest production payment.
+4. Decide whether `alerts@liu-unnie.com` should remain the sender or move to a dedicated support/ops sender.
 
 ## Next Work
 
-1. Buy the domain and finish Resend sender setup.
-2. Test operator notification email delivery after payment.
-3. Decide the manual operations flow after payment:
+1. Decide the manual operations flow after payment:
    - where to check newly paid submissions
    - how to send the follow-up guide email manually
-4. Add a minimal operator-facing reference:
+2. Add a minimal operator-facing reference:
    - either Supabase table filter instructions
    - or a tiny admin page listing paid submissions
-5. After the MVP is stable, add webhook reconciliation and optional Resend automation.
-6. Review the English copy quality once the core operator flow is settled.
+3. Rotate sensitive keys that were exposed during MVP setup.
+4. After the MVP is stable, add webhook reconciliation and optional Resend automation.
+5. Review the English copy quality once the core operator flow is settled.
 
 ## Useful Files
 

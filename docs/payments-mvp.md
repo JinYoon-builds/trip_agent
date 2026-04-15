@@ -28,7 +28,7 @@ Copy `.env.example` to `.env.local` and fill in:
 - `PAYPAL_CLIENT_SECRET`
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
-- `NOTIFICATION_EMAIL`
+- `NOTIFICATION_EMAIL` (`comma-separated` if you want multiple recipients)
 - `PAYPAL_ORDER_DESCRIPTION` (optional)
 
 ## Pricing note

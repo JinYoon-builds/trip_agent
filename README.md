@@ -1,4 +1,4 @@
-# lie-unnie Landing
+# liu-unnie Landing
 
 중국인 관광객 대상 실시간 비대면 관광 가이드 매칭 서비스의 랜딩페이지 초안입니다.
 

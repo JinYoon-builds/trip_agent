@@ -27,7 +27,7 @@ const SURVEY_ANALYTICS_ID = "guide_matching_v1";
 
 const surveyContent = {
   en: {
-    brand: "lie-unnie",
+    brand: "liu-unnie",
     back: "Back to home",
     title: "All-in-one Travel Service",
     subtitle:
@@ -84,8 +84,11 @@ const surveyContent = {
     requiredFieldError:
       "Please fill in all required fields before submitting.",
     emailRequiredError: "Please enter a valid contact email.",
+    emailConfirmRequiredError:
+      "Please confirm that this is the email where you want to receive your guide details.",
     selectionCount: "Selected",
     maxSelectionText: (count) => `Choose up to ${count}`,
+    summaryWechatLabel: "WeChat ID",
     steps: [
       {
         id: "basicInformation",
@@ -105,6 +108,14 @@ const surveyContent = {
             inputType: "email",
             label: "Contact Email *",
             placeholder: "name@example.com",
+            required: true,
+          },
+          {
+            id: "contactEmailConfirmed",
+            kind: "checkbox",
+            label: "Email Confirmation *",
+            checkboxText:
+              "I confirmed this is the email where I want to receive my guide details.",
             required: true,
           },
           {
@@ -130,6 +141,12 @@ const surveyContent = {
             kind: "text",
             label: "MBTI",
             placeholder: "e.g. ENFP",
+          },
+          {
+            id: "wechatId",
+            kind: "text",
+            label: "WeChat ID (optional)",
+            placeholder: "e.g. lieunnie88",
           },
         ],
       },
@@ -216,7 +233,7 @@ const surveyContent = {
     ],
   },
   ko: {
-    brand: "lie-unnie",
+    brand: "liu-unnie",
     back: "랜딩으로 돌아가기",
     title: "올인원 여행 서비스",
     subtitle:
@@ -273,8 +290,11 @@ const surveyContent = {
     requiredFieldError:
       "별표(*)가 있는 필수 항목을 모두 입력해 주세요.",
     emailRequiredError: "올바른 이메일 주소를 입력해 주세요.",
+    emailConfirmRequiredError:
+      "가이드 안내를 받을 이메일이 맞는지 확인 체크를 해 주세요.",
     selectionCount: "선택",
     maxSelectionText: (count) => `최대 ${count}개 선택`,
+    summaryWechatLabel: "WeChat ID",
     steps: [
       {
         id: "basicInformation",
@@ -294,6 +314,14 @@ const surveyContent = {
             inputType: "email",
             label: "이메일 *",
             placeholder: "name@example.com",
+            required: true,
+          },
+          {
+            id: "contactEmailConfirmed",
+            kind: "checkbox",
+            label: "이메일 확인 *",
+            checkboxText:
+              "가이드 안내를 받을 이메일이 맞는지 확인했습니다.",
             required: true,
           },
           {
@@ -319,6 +347,12 @@ const surveyContent = {
             kind: "text",
             label: "MBTI",
             placeholder: "예: ENFP",
+          },
+          {
+            id: "wechatId",
+            kind: "text",
+            label: "WeChat ID (선택)",
+            placeholder: "예: lieunnie88",
           },
         ],
       },
@@ -405,7 +439,7 @@ const surveyContent = {
     ],
   },
   zh: {
-    brand: "lie-unnie",
+    brand: "liu-unnie",
     back: "返回首页",
     title: "一站式旅行服务",
     subtitle:
@@ -462,8 +496,11 @@ const surveyContent = {
     requiredFieldError:
       "请先填写所有必填项后再提交。",
     emailRequiredError: "请输入正确的联系邮箱地址。",
+    emailConfirmRequiredError:
+      "请先勾选确认这是接收向导联系的邮箱。",
     selectionCount: "已选",
     maxSelectionText: (count) => `最多选择 ${count} 项`,
+    summaryWechatLabel: "WeChat ID",
     steps: [
       {
         id: "basicInformation",
@@ -483,6 +520,14 @@ const surveyContent = {
             inputType: "email",
             label: "联系邮箱 *",
             placeholder: "name@example.com",
+            required: true,
+          },
+          {
+            id: "contactEmailConfirmed",
+            kind: "checkbox",
+            label: "邮箱确认 *",
+            checkboxText:
+              "我已确认这是接收向导联系的邮箱。",
             required: true,
           },
           {
@@ -508,6 +553,12 @@ const surveyContent = {
             kind: "text",
             label: "MBTI",
             placeholder: "例如：ENFP",
+          },
+          {
+            id: "wechatId",
+            kind: "text",
+            label: "WeChat ID（选填）",
+            placeholder: "例如：lieunnie88",
           },
         ],
       },
@@ -687,6 +738,10 @@ function isFieldAnswered(field, answers) {
     return Array.isArray(answers[field.id]) && answers[field.id].length > 0;
   }
 
+  if (field.kind === "checkbox") {
+    return answers[field.id] === true;
+  }
+
   if (field.kind === "datetimeRange") {
     return isValidDateRange(answers[field.startId], answers[field.endId]);
   }
@@ -856,6 +911,7 @@ function SurveyField({
   field,
   fieldValue,
   language,
+  onCheckboxChange,
   onMultiToggle,
   onSingleChange,
   onTextChange,
@@ -1008,6 +1064,20 @@ function SurveyField({
           <span>{`${formatBudgetAmount(field.max, language)}+`}</span>
         </div>
       </div>
+    );
+  }
+
+  if (field.kind === "checkbox") {
+    return (
+      <label className="survey-checkbox-field">
+        <input
+          checked={fieldValue === true}
+          className="survey-checkbox-input"
+          onChange={(event) => onCheckboxChange(field.id, event.target.checked)}
+          type="checkbox"
+        />
+        <span>{field.checkboxText}</span>
+      </label>
     );
   }
 
@@ -1359,6 +1429,10 @@ export default function SurveyClient({ initialLanguage }) {
     };
     const meta = analyticsFieldMap.get(fieldId);
 
+    if (fieldId === "contactEmail" && answers.contactEmailConfirmed) {
+      nextAnswers.contactEmailConfirmed = false;
+    }
+
     setAnswers(nextAnswers);
 
     if (!meta) {
@@ -1430,6 +1504,22 @@ export default function SurveyClient({ initialLanguage }) {
       interactionType: "option_selected",
       isComplete: true,
       selectionCount: 1,
+    });
+  };
+
+  const handleCheckboxChange = (fieldId, checked) => {
+    setSubmitError("");
+    const nextAnswers = {
+      ...answers,
+      [fieldId]: checked,
+    };
+
+    setAnswers(nextAnswers);
+    trackSurveyFieldInteraction({
+      rawFieldId: fieldId,
+      interactionType: checked ? "option_selected" : "option_removed",
+      isComplete: checked,
+      selectionCount: checked ? 1 : 0,
     });
   };
 
@@ -1527,8 +1617,10 @@ export default function SurveyClient({ initialLanguage }) {
       field: fieldMap.get("guideDates"),
       language,
     });
+    const wechatId =
+      typeof answers.wechatId === "string" ? answers.wechatId.trim() : "";
 
-    return [
+    const summaryItems = [
       { label: content.summaryItems[0].label, value: fullName },
       { label: content.summaryItems[1].label, value: contactEmail },
       {
@@ -1545,6 +1637,15 @@ export default function SurveyClient({ initialLanguage }) {
       { label: content.summaryItems[5].label, value: guideDates },
       { label: content.summaryBudgetLabel, value: dailyBudget },
     ];
+
+    if (wechatId) {
+      summaryItems.push({
+        label: content.summaryWechatLabel,
+        value: wechatId,
+      });
+    }
+
+    return summaryItems;
   };
 
   const handleSubmit = async () => {
@@ -1565,6 +1666,8 @@ export default function SurveyClient({ initialLanguage }) {
 
     if (missingRequiredField) {
       const missingFieldMeta = analyticsFieldMap.get(missingRequiredField.fieldId);
+      const isEmailConfirmField =
+        missingRequiredField.fieldId === "contactEmailConfirmed";
 
       trackEvent("survey_validation_error", {
         survey_id: SURVEY_ANALYTICS_ID,
@@ -1575,15 +1678,22 @@ export default function SurveyClient({ initialLanguage }) {
             ? missingRequiredField.stepIndex + 1
             : undefined,
         field_id: missingRequiredField.fieldId,
-        validation_reason: "required_missing",
+        validation_reason: isEmailConfirmField
+          ? "email_unconfirmed"
+          : "required_missing",
       });
       setCurrentStepIndex(missingRequiredField.stepIndex);
-      setSubmitError(content.requiredFieldError);
+      setSubmitError(
+        isEmailConfirmField
+          ? content.emailConfirmRequiredError
+          : content.requiredFieldError,
+      );
       return;
     }
 
     const contactEmail =
       typeof answers.contactEmail === "string" ? answers.contactEmail.trim() : "";
+    const isContactEmailConfirmed = answers.contactEmailConfirmed === true;
 
     if (!isValidEmail(contactEmail)) {
       trackEvent("survey_validation_error", {
@@ -1596,6 +1706,20 @@ export default function SurveyClient({ initialLanguage }) {
       });
       setCurrentStepIndex(0);
       setSubmitError(content.emailRequiredError);
+      return;
+    }
+
+    if (!isContactEmailConfirmed) {
+      trackEvent("survey_validation_error", {
+        survey_id: SURVEY_ANALYTICS_ID,
+        language,
+        step_id: "basicInformation",
+        step_number: 1,
+        field_id: "contactEmailConfirmed",
+        validation_reason: "email_unconfirmed",
+      });
+      setCurrentStepIndex(0);
+      setSubmitError(content.emailConfirmRequiredError);
       return;
     }
 
@@ -1901,6 +2025,7 @@ export default function SurveyClient({ initialLanguage }) {
                     field={field}
                     fieldValue={fieldValue}
                     language={language}
+                    onCheckboxChange={handleCheckboxChange}
                     onMultiToggle={handleMultiToggle}
                     onSingleChange={handleSingleChange}
                     onTextChange={handleTextChange}

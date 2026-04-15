@@ -42,7 +42,7 @@ export async function POST(request) {
     const { order } = await createPayPalOrder({
       submissionId,
       amount: pricingQuote.totalAmount,
-      description: `lie-unnie private guide matching request (${dayLabel})`,
+      description: `liu-unnie private guide matching request (${dayLabel})`,
     });
 
     await updateSurveySubmission(submissionId, {
