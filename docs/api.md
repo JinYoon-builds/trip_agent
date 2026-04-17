@@ -1,15 +1,51 @@
 # API Reference
 
-이 문서는 현재 구현된 주요 API를 정리합니다. 현재 운영 기준의 공개 인터페이스는 제출 생성/조회와 admin 조회 API입니다.
+이 문서는 현재 구현된 서버 API를 코드 기준으로 정리합니다.  
+현재 운영 기준 인터페이스는 `인증 세션 조회`, `설문 제출/조회`, `admin 조회 API`입니다.
 
 ## 인증
 
-모든 주요 API는 인증된 사용자를 전제로 합니다.
+모든 보호 API는 아래 두 방식 중 하나로 현재 사용자를 식별합니다.
 
-- 지원 방식:
-  - `Authorization: Bearer <token>`
-  - Supabase auth cookie
-- admin API는 추가로 `profiles.role = 'admin'`이 필요합니다.
+- `Authorization: Bearer <access_token>`
+- Supabase auth cookie
+
+추가 규칙:
+
+- `POST /api/submissions`는 `로그인 + 이메일 인증 완료`가 필요합니다.
+- admin API는 `로그인 + 이메일 인증 완료 + profiles.role = 'admin'`이 필요합니다.
+
+## `GET /api/auth/session`
+
+현재 세션 사용자와 role 정보를 조회합니다.
+
+### 권한
+
+- 로그인 필요
+
+### 성공 응답
+
+```json
+{
+  "user": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "emailConfirmedAt": "2026-04-17T12:00:00.000Z",
+    "isEmailVerified": true
+  },
+  "profile": {
+    "id": "uuid",
+    "email": "user@example.com",
+    "role": "customer"
+  },
+  "isEmailVerified": true
+}
+```
+
+### 주요 에러
+
+- `401`: 로그인 안 됨
+- `403`: `profiles` row 없음
 
 ## `POST /api/submissions`
 
@@ -17,7 +53,8 @@
 
 ### 권한
 
-- 인증 사용자 필요
+- 로그인 사용자 필요
+- 이메일 인증 완료 필요
 
 ### 요청 본문
 
@@ -26,6 +63,7 @@
   "language": "ko",
   "contactEmail": "user@example.com",
   "answers": {
+    "fullName": "홍길동",
     "contactEmail": "user@example.com",
     "contactEmailConfirmed": true,
     "guideDates": ["2026-04-18", "2026-04-19"]
@@ -41,8 +79,9 @@
 - payload 유효성 검사
 - `contactEmail` 확인
 - `contactEmailConfirmed === true` 확인
-- `guideDates` 기준 가격 계산
+- `answers.guideDates` 기준 견적 계산
 - `survey_submissions` row 생성
+- `user_id`, `applicant_name`, `submission_status`, `quoted_*` 저장
 - Resend 설정이 있으면 운영 알림 메일 발송
 
 ### 성공 응답
@@ -51,13 +90,21 @@
 {
   "submission": {
     "id": "uuid",
+    "userId": "uuid",
     "language": "ko",
     "contactEmail": "user@example.com",
-    "paymentStatus": "awaiting_manual_payment",
-    "paymentAmount": "1080",
-    "paymentCurrency": "CNY",
-    "paymentDisplayLabel": "CNY 1,080",
-    "submittedAt": "2026-04-17T12:00:00.000Z"
+    "applicantName": "홍길동",
+    "answers": {},
+    "summary": [],
+    "submissionStatus": "awaiting_transfer",
+    "guideDayCount": 2,
+    "quotedAmount": "1080",
+    "quotedCurrency": "CNY",
+    "quotedDisplayLabel": "CNY 1,080",
+    "emailSentAt": null,
+    "emailSendError": null,
+    "submittedAt": "2026-04-17T12:00:00.000Z",
+    "updatedAt": "2026-04-17T12:00:00.000Z"
   },
   "emailSent": true,
   "emailSendError": null
@@ -66,7 +113,8 @@
 
 ### 주요 에러
 
-- `401`: 인증 없음
+- `401`: 로그인 안 됨
+- `403`: 이메일 인증 안 됨
 - `400`: answers 형식 오류
 - `400`: 유효한 이메일 없음
 - `400`: 이메일 확인 체크 누락
@@ -90,14 +138,14 @@
     "userId": "uuid",
     "language": "ko",
     "contactEmail": "user@example.com",
+    "applicantName": "홍길동",
     "answers": {},
     "summary": [],
-    "paymentStatus": "awaiting_manual_payment",
-    "paymentAmount": "1080",
-    "paymentCurrency": "CNY",
-    "paymentDisplayLabel": "CNY 1,080",
-    "paypalOrderId": null,
-    "paypalCaptureId": null,
+    "submissionStatus": "awaiting_transfer",
+    "guideDayCount": 2,
+    "quotedAmount": "1080",
+    "quotedCurrency": "CNY",
+    "quotedDisplayLabel": "CNY 1,080",
     "emailSentAt": null,
     "emailSendError": null,
     "submittedAt": "2026-04-17T12:00:00.000Z",
@@ -108,7 +156,7 @@
 
 ### 주요 에러
 
-- `401`: 인증 없음
+- `401`: 로그인 안 됨
 - `404`: 제출 없음 또는 접근 권한 없음
 
 ## `GET /api/admin/submissions`
@@ -118,6 +166,7 @@
 ### 권한
 
 - admin 필요
+- 이메일 인증 완료 필요
 
 ### 쿼리 파라미터
 
@@ -139,8 +188,8 @@
 
 ### 주요 에러
 
-- `401`: 인증 없음
-- `403`: admin 아님
+- `401`: 로그인 안 됨
+- `403`: admin 아님 또는 이메일 인증 안 됨
 - `400`: `limit > 200`
 
 ## `GET /api/admin/submissions/[id]`
@@ -150,6 +199,7 @@
 ### 권한
 
 - admin 필요
+- 이메일 인증 완료 필요
 
 ### 성공 응답
 
@@ -163,8 +213,8 @@
 
 ### 주요 에러
 
-- `401`: 인증 없음
-- `403`: admin 아님
+- `401`: 로그인 안 됨
+- `403`: admin 아님 또는 이메일 인증 안 됨
 - `404`: 제출 없음
 
 ## 미구현 API
@@ -174,16 +224,3 @@
 - `PATCH /api/admin/submissions/[id]`
 
 즉, 운영자가 수동 입금 확인 상태를 서버에서 변경하는 공식 API는 아직 없습니다.
-
-## 레거시 PayPal API
-
-현재 프로덕션 기본 플로우는 아니지만 아래 라우트는 레포에 남아 있습니다.
-
-- `POST /api/paypal/create-order`
-  - 제출 기반으로 PayPal 주문 생성
-  - `payment_status`를 `payment_created`로 변경 가능
-- `POST /api/paypal/capture-order`
-  - PayPal 결제 캡처
-  - 상태를 `paid` 또는 `payment_pending`으로 변경 가능
-
-이 경로들은 현재 완료 페이지 기본 UX에서 사용되지 않습니다.

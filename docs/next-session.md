@@ -28,10 +28,15 @@
   - only selected guide dates are billable
   - survey sidebar shows a live frontend price preview
 - Guide pricing is now dynamic instead of fixed:
-  - 1 day = `$89`
+  - 1 day = `CNY 600`
   - 2 days = `10%` discount
   - 3+ days = `20%` discount
   - the quoted amount is recalculated on the server from `answers.guideDates`
+- Supabase Auth is now wired into the frontend:
+  - landing and survey headers share one auth modal
+  - sign-up requires email verification
+  - survey submission requires a logged-in, email-verified account
+  - `/admin` uses the same login flow and role-based gating
 - The completion page is simplified for users:
   - travel summary first
   - manual payment section after the summary
@@ -78,6 +83,10 @@
   - operator email subject format: `설문 완료 / 결제금액 / 입금자명`
 - `GET /api/submissions/[id]`
   - fetches saved submission data
+- `GET /api/auth/session`
+  - returns current user, profile, and email verification state
+- `GET /api/admin/submissions`
+  - returns admin-only submission list
 - Resend operator email delivery
   - production submit notification email was verified successfully
 - Completion page UI
@@ -102,6 +111,7 @@
 2. Check `survey_submissions` for the latest rows:
    - `submission_status = awaiting_transfer`
    - `quoted_amount` / `quoted_display_label` match the selected guide dates
+   - `user_id` is filled for new authenticated submissions
 3. Confirm Resend delivery logs for the latest production submit email.
 4. Decide whether `alerts@liu-unnie.com` should remain the sender or move to a dedicated support/ops sender.
 
@@ -138,3 +148,4 @@
 - Landing: `http://localhost:3000/?lang=ko`
 - Survey: `http://localhost:3000/survey?lang=ko`
 - Completion example: `https://liu-unnie.com/survey/complete?id=653381b1-0e16-4736-a6bf-9d9bfd8ab180&lang=ko`
+- Admin: `http://localhost:3000/admin`
