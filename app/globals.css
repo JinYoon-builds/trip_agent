@@ -2132,11 +2132,6 @@ img {
   line-height: 1.35;
 }
 
-.admin-table-cell:first-child strong {
-  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-  font-size: 0.82rem;
-}
-
 .admin-error {
   color: #ba3d5c;
 }

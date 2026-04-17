@@ -29,6 +29,50 @@ async function fetchAdminSubmissions() {
   return data?.submissions ?? [];
 }
 
+function formatAdminSubmittedAt(value) {
+  if (!value) {
+    return "-";
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return value;
+  }
+
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hour = String(date.getHours()).padStart(2, "0");
+
+  return `${year}-${month}-${day} ${hour}시`;
+}
+
+function getApplicantName(submission) {
+  const directName =
+    typeof submission?.applicantName === "string" ? submission.applicantName.trim() : "";
+
+  if (directName) {
+    return directName;
+  }
+
+  const answerName =
+    typeof submission?.answers?.fullName === "string"
+      ? submission.answers.fullName.trim()
+      : "";
+
+  if (answerName) {
+    return answerName;
+  }
+
+  const summaryName =
+    Array.isArray(submission?.summary) && typeof submission.summary[0]?.value === "string"
+      ? submission.summary[0].value.trim()
+      : "";
+
+  return summaryName || "-";
+}
+
 export default function AdminPageClient() {
   const router = useRouter();
   const { isAdmin, isAuthenticated, openAuthModal, profile, status } = useAuth();
@@ -145,7 +189,7 @@ export default function AdminPageClient() {
               {!isLoading && !errorMessage ? (
                 <div className="admin-table">
                   <div className="admin-table-head">
-                    <span>ID</span>
+                    <span>Applicant</span>
                     <span>Email</span>
                     <span>Status</span>
                     <span>Submitted</span>
@@ -157,8 +201,8 @@ export default function AdminPageClient() {
                       key={submission.id}
                     >
                       <div className="admin-table-cell">
-                        <span className="admin-table-label">ID</span>
-                        <strong>{submission.id}</strong>
+                        <span className="admin-table-label">Applicant</span>
+                        <strong>{getApplicantName(submission)}</strong>
                       </div>
                       <div className="admin-table-cell">
                         <span className="admin-table-label">Email</span>
@@ -170,7 +214,7 @@ export default function AdminPageClient() {
                       </div>
                       <div className="admin-table-cell">
                         <span className="admin-table-label">Submitted</span>
-                        <strong>{submission.submittedAt}</strong>
+                        <strong>{formatAdminSubmittedAt(submission.submittedAt)}</strong>
                       </div>
                     </Link>
                   ))}
