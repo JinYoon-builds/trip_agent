@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { buildApiErrorResponse } from "../../../../lib/api-error-response";
 import { createHttpError } from "../../../../lib/http-errors";
+import { requireSubmissionAccess } from "../../../../lib/request-auth";
 import {
   formatPaymentDisplayLabel,
   getGuideDayCountFromAnswers,
@@ -30,6 +31,8 @@ export async function POST(request) {
     if (!submission) {
       throw createHttpError(404, "Submission not found.");
     }
+
+    await requireSubmissionAccess(request, submission);
 
     const guideDayCount = getGuideDayCountFromAnswers(submission.answers);
     const pricingQuote = getGuidePricingQuote({ guideDayCount });
