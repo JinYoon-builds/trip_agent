@@ -87,6 +87,8 @@
 
 현재 실제 사용자 플로우에서 가장 중요한 기본 상태는 `awaiting_transfer`입니다.
 
+현재 코드 기준 사용자 수정 가능 여부는 `awaiting_transfer`, `payment_review` 상태로 제한됩니다.
+
 ## 견적 관련 필드 의미
 
 ### `guide_day_count`
@@ -172,4 +174,4 @@ admin API는 DB RLS만으로 해결하지 않고, 서버가 service role key로 
 ## 현재 주의사항
 
 - `survey_submissions`는 설문 원본 `answers`와 운영용 `summary`를 함께 저장하는 하이브리드 모델입니다.
-- 수동 입금 상태를 서버에서 변경하는 admin mutation API는 아직 없습니다.
+- admin mutation API는 `payment_review`, `paid`, `matched`, `cancelled` 상태 변경을 지원하며, 전이는 워크플로 순서에 맞게 제한됩니다.

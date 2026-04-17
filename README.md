@@ -32,8 +32,10 @@
 - 로그인 후 헤더 계정 상태 표시
 - Supabase 기반 설문 저장
 - 제출자 소유권 기반 설문 조회 보호
+- 사용자 마이페이지 제출 목록 / 상태 조회
+- 결제 완료 전 제출 수정
 - `customer / admin` 역할 분리
-- 관리자용 제출 목록 / 상세 조회 페이지
+- 관리자용 제출 목록 / 상세 조회 / 상태 변경 페이지
 - 가이드 날짜 기반 동적 견적 계산
 - 완료 페이지 `WeChat Pay` 수동 결제 안내
 - 설문 제출 시 운영팀 알림 메일 발송
@@ -66,5 +68,6 @@ npm run build
 
 - 결제 연동은 `PayPal` 없이 `WeChat Pay` 수동 입금 기준으로만 동작합니다.
 - `survey_submissions`는 설문 원본 `answers`, 운영용 `summary`, 견적 `quoted_*`, 상태 `submission_status`를 함께 저장합니다.
-- 관리자 페이지는 현재 읽기 전용이며, 수동 입금 상태를 변경하는 admin mutation API는 아직 없습니다.
+- 사용자는 자신의 제출 목록과 상태를 마이페이지에서 확인할 수 있고, `awaiting_transfer` / `payment_review` 상태 제출은 수정할 수 있습니다.
+- 관리자 페이지에서는 제출 목록/상세 조회와 `payment_review` / `paid` / `matched` / `cancelled` 상태 변경을 지원합니다.
 - Supabase Auth에서는 이메일 인증을 켜 두는 것을 전제로 동작합니다.

@@ -5,6 +5,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "../../components/auth-provider";
+import { getSubmissionStatusLabel } from "../../lib/submission-status";
 import { getCurrentAccessToken } from "../../lib/supabase-browser";
 
 async function fetchAdminSubmissions() {
@@ -150,12 +151,28 @@ export default function AdminPageClient() {
                     <span>Submitted</span>
                   </div>
                   {submissions.map((submission) => (
-                    <div className="admin-table-row" key={submission.id}>
-                      <span>{submission.id}</span>
-                      <span>{submission.contactEmail}</span>
-                      <span>{submission.submissionStatus}</span>
-                      <span>{submission.submittedAt}</span>
-                    </div>
+                    <Link
+                      className="admin-table-row interactive"
+                      href={`/admin/submissions/${submission.id}`}
+                      key={submission.id}
+                    >
+                      <div className="admin-table-cell">
+                        <span className="admin-table-label">ID</span>
+                        <strong>{submission.id}</strong>
+                      </div>
+                      <div className="admin-table-cell">
+                        <span className="admin-table-label">Email</span>
+                        <strong>{submission.contactEmail}</strong>
+                      </div>
+                      <div className="admin-table-cell">
+                        <span className="admin-table-label">Status</span>
+                        <strong>{getSubmissionStatusLabel(submission.submissionStatus, "ko")}</strong>
+                      </div>
+                      <div className="admin-table-cell">
+                        <span className="admin-table-label">Submitted</span>
+                        <strong>{submission.submittedAt}</strong>
+                      </div>
+                    </Link>
                   ))}
                 </div>
               ) : null}

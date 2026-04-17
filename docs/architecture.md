@@ -139,15 +139,23 @@
 3. 메일 제목에는 견적 금액과 입금자명이 포함됩니다.
 4. 메일 발송 결과는 API 응답에 포함되고, 실패 시 에러 문자열도 함께 반환됩니다.
 
-## 운영자 제출 조회 흐름
+## 운영자 제출 조회/상태 변경 흐름
 
 1. admin 사용자가 `/api/admin/submissions` 또는 `/api/admin/submissions/[id]`를 호출합니다.
 2. 서버가 `profiles.role`과 이메일 인증 여부를 확인합니다.
 3. Supabase admin REST 호출로 제출 데이터를 읽어옵니다.
 4. 응답은 `serializeSubmission()`을 거친 JSON 형태로 반환됩니다.
+5. 상태 변경 시에는 `PATCH /api/admin/submissions/[id]`가 허용된 상태값만 받아 기존 row를 업데이트합니다.
+
+## 사용자 마이페이지 / 제출 수정 흐름
+
+1. 로그인 사용자가 `/api/submissions`를 호출해 자신의 제출 목록을 조회합니다.
+2. 각 제출은 `serializeSubmission()` 기준으로 상태와 `isEditable` 값을 함께 받습니다.
+3. 사용자가 수정 가능한 제출을 열면 기존 설문 데이터를 불러와 같은 설문 폼을 edit mode로 다시 보여줍니다.
+4. 저장 시 `PATCH /api/submissions/[id]`를 호출하고, 서버가 payload 검증과 견적 재계산을 수행합니다.
 
 ## 현재 구조상 유의사항
 
-- admin 목록/상세 조회는 구현되어 있지만 수동 입금 상태를 변경하는 admin mutation API는 아직 없습니다.
-- 수동 입금 확인 이후 `matched` 전환까지의 운영 워크플로는 아직 서버 액션/API로 자동화되지 않았습니다.
+- admin 목록/상세 조회와 상태 변경 API가 모두 존재하지만, 상태 이력(audit trail)은 아직 남기지 않습니다.
+- 사용자 수정 가능 여부는 현재 `awaiting_transfer`, `payment_review` 상태 기준으로 판정합니다.
 - 현재 인증 UI는 공용 로그인 흐름 하나를 공유하며, 관리자 전용 별도 로그인 화면은 없습니다.

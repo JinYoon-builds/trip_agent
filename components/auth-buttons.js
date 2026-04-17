@@ -81,8 +81,19 @@ export default function AuthButtons({ language, compact = false }) {
 
           {isMenuOpen ? (
             <div className="auth-account-menu" role="menu">
+              <Link
+                className="auth-account-menu-link"
+                href={`/account?lang=${language}`}
+                onClick={() => setIsMenuOpen(false)}
+              >
+                {copy.myPage}
+              </Link>
               {isAdmin ? (
-                <Link className="auth-account-menu-link" href="/admin" onClick={() => setIsMenuOpen(false)}>
+                <Link
+                  className="auth-account-menu-link"
+                  href={`/admin?lang=${language}`}
+                  onClick={() => setIsMenuOpen(false)}
+                >
                   {copy.admin}
                 </Link>
               ) : null}

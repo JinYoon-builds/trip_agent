@@ -41,6 +41,10 @@ export default function AuthModal() {
   const isSignIn = modalState.mode === "signIn";
   const showVerificationState =
     authNotice === "signup-verification" || authNotice === "verification-resent";
+  const subtitle =
+    modalState.reason === "survey-submit"
+      ? copy.modalSubtitleSubmit
+      : copy.modalSubtitleDefault;
 
   const handleSubmit = async (event) => {
     event.preventDefault();
@@ -96,11 +100,7 @@ export default function AuthModal() {
 
         <div className="auth-modal-copy">
           <h2>{isSignIn ? copy.modalTitleSignIn : copy.modalTitleSignUp}</h2>
-          <p>
-            {modalState.reason === "survey-submit"
-              ? copy.modalSubtitleSubmit
-              : copy.modalSubtitleDefault}
-          </p>
+          {subtitle ? <p>{subtitle}</p> : null}
         </div>
 
         {showVerificationState ? (

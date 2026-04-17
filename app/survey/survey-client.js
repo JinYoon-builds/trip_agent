@@ -19,7 +19,11 @@ import {
   createSurveySubmissionId,
   saveSurveySubmission,
 } from "../../lib/survey-local-storage";
-import { createRemoteSubmission } from "../../lib/submission-client";
+import {
+  createRemoteSubmission,
+  fetchRemoteSubmission,
+  updateRemoteSubmission,
+} from "../../lib/submission-client";
 const LANGUAGE_LOCALES = {
   en: "en-US",
   ko: "ko-KR",
@@ -27,6 +31,54 @@ const LANGUAGE_LOCALES = {
 };
 
 const SURVEY_ANALYTICS_ID = "guide_matching_v1";
+const surveyModeCopy = {
+  en: {
+    editBack: "Back to my page",
+    editTitle: "Update your travel request",
+    editSubtitle:
+      "Review the saved survey and update the full form before payment is completed.",
+    editSidebarText:
+      "This uses the same survey form, but saving will update the existing request instead of creating a new one.",
+    editFinish: "Save changes",
+    editSubmitting: "Saving changes...",
+    editSubmitError: "We could not save your changes just now. Please try again.",
+    editLoading: "Loading your saved survey...",
+    editLoadError:
+      "We could not load this saved survey. Please return to your my page and try again.",
+    editLockedError:
+      "This submission can no longer be edited because payment has already been completed.",
+  },
+  ko: {
+    editBack: "마이페이지로 돌아가기",
+    editTitle: "저장된 여행 요청 수정",
+    editSubtitle:
+      "결제가 완료되기 전까지 저장된 설문 전체를 다시 확인하고 수정할 수 있습니다.",
+    editSidebarText:
+      "같은 설문 폼을 사용하지만, 저장 시 새 제출이 아니라 기존 요청을 업데이트합니다.",
+    editFinish: "수정 저장",
+    editSubmitting: "수정 내용을 저장하는 중...",
+    editSubmitError: "설문 수정 내용을 저장하지 못했습니다. 다시 시도해 주세요.",
+    editLoading: "저장된 설문을 불러오는 중입니다...",
+    editLoadError:
+      "저장된 설문을 불러오지 못했습니다. 마이페이지로 돌아가 다시 시도해 주세요.",
+    editLockedError:
+      "이미 결제 완료된 제출이라 더 이상 수정할 수 없습니다.",
+  },
+  zh: {
+    editBack: "返回我的页面",
+    editTitle: "修改已保存的旅行请求",
+    editSubtitle:
+      "在付款完成前，你可以重新查看并修改整份已保存的问卷。",
+    editSidebarText:
+      "这里仍然使用同一份问卷表单，但保存时会更新原有请求，而不是创建新提交。",
+    editFinish: "保存修改",
+    editSubmitting: "正在保存修改...",
+    editSubmitError: "暂时无法保存你的修改，请重试。",
+    editLoading: "正在加载你保存的问卷...",
+    editLoadError: "无法加载这份已保存的问卷，请返回我的页面后重试。",
+    editLockedError: "这份提交已经完成付款，不能再修改。",
+  },
+};
 
 const surveyContent = {
   en: {
@@ -1169,16 +1221,25 @@ function SurveyField({
   );
 }
 
-export default function SurveyClient({ initialLanguage }) {
+export default function SurveyClient({
+  initialLanguage,
+  mode = "create",
+  submissionId = "",
+}) {
   const router = useRouter();
   const pathname = usePathname();
-  const { isAuthenticated, isEmailVerified, openAuthModal } = useAuth();
+  const { isAuthenticated, isEmailVerified, openAuthModal, status } = useAuth();
   const [language, setLanguage] = useState(normalizeSiteLanguage(initialLanguage));
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
   const [showSubmitLoginGate, setShowSubmitLoginGate] = useState(false);
+  const [isLoadingExistingSubmission, setIsLoadingExistingSubmission] = useState(
+    mode === "edit",
+  );
+  const [existingSubmission, setExistingSubmission] = useState(null);
+  const [editLoadError, setEditLoadError] = useState("");
   const trackedFieldStartsRef = useRef(new Set());
   const lastDateRangeKeyRef = useRef("");
   const lastStepViewKeyRef = useRef("");
@@ -1192,6 +1253,72 @@ export default function SurveyClient({ initialLanguage }) {
   useEffect(() => {
     setLanguage(normalizeSiteLanguage(initialLanguage));
   }, [initialLanguage]);
+
+  useEffect(() => {
+    if (mode !== "edit") {
+      return;
+    }
+
+    if (status !== "ready") {
+      return;
+    }
+
+    if (!isAuthenticated) {
+      openAuthModal("signIn", "general");
+      setIsLoadingExistingSubmission(false);
+      setEditLoadError(surveyModeCopy[language].editLoadError);
+      return;
+    }
+
+    if (!submissionId) {
+      setIsLoadingExistingSubmission(false);
+      setEditLoadError(surveyModeCopy[language].editLoadError);
+      return;
+    }
+
+    let cancelled = false;
+
+    const loadSubmission = async () => {
+      setIsLoadingExistingSubmission(true);
+      setEditLoadError("");
+
+      try {
+        const submission = await fetchRemoteSubmission(submissionId);
+
+        if (cancelled) {
+          return;
+        }
+
+        if (!submission?.id) {
+          throw new Error(surveyModeCopy[language].editLoadError);
+        }
+
+        if (!submission.isEditable) {
+          setEditLoadError(surveyModeCopy[language].editLockedError);
+          setExistingSubmission(submission);
+          setAnswers(submission.answers ?? {});
+          return;
+        }
+
+        setExistingSubmission(submission);
+        setAnswers(submission.answers ?? {});
+      } catch (error) {
+        if (!cancelled) {
+          setEditLoadError(error?.message || surveyModeCopy[language].editLoadError);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingExistingSubmission(false);
+        }
+      }
+    };
+
+    void loadSubmission();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, language, mode, openAuthModal, status, submissionId]);
 
   useEffect(() => {
     setAnswers((prev) => {
@@ -1221,6 +1348,7 @@ export default function SurveyClient({ initialLanguage }) {
   }, [answers.travelStartDate, answers.travelEndDate]);
 
   const content = surveyContent[language];
+  const modeContent = surveyModeCopy[language];
   const steps = content.steps;
   const currentStep = steps[currentStepIndex];
   const visibleFields = currentStep.fields.filter((field) => isFieldVisible(field, answers));
@@ -1801,34 +1929,113 @@ export default function SurveyClient({ initialLanguage }) {
     setIsSubmitting(true);
     setSubmitError("");
 
-    try {
-      const submissionPayload = {
-        language,
-        contactEmail,
-        answers: {
-          ...answers,
-        },
-        summary: buildSubmissionSummary(),
-      };
-      let submission = null;
-
       try {
-        submission = await createRemoteSubmission(submissionPayload);
-      } catch (error) {
-        if (error?.status === 401) {
-          setIsSubmitting(false);
-          submitAfterAuthRef.current = true;
-          setShowSubmitLoginGate(true);
-          openAuthModal("signIn", "survey-submit");
+        const submissionPayload = {
+          language,
+          contactEmail,
+          answers: {
+            ...answers,
+          },
+          summary: buildSubmissionSummary(),
+        };
+
+        if (mode === "edit") {
+          if (!existingSubmission?.id || !existingSubmission.isEditable) {
+            throw new Error(modeContent.editLockedError);
+          }
+
+          const updatedSubmission = await updateRemoteSubmission(
+            existingSubmission.id,
+            submissionPayload,
+          );
+
+          hasSubmittedRef.current = true;
+          abandonContextRef.current = {
+            ...abandonContextRef.current,
+            hasSubmitted: true,
+          };
+          saveSurveySubmission({
+            ...updatedSubmission,
+            storageMode: "server",
+          });
+          router.push(`/survey/complete?id=${updatedSubmission.id}&lang=${language}`);
           return;
         }
 
-        if (!shouldFallBackToLocalSave(error)) {
-          throw error;
-        }
-      }
+        let submission = null;
 
-      if (submission?.id) {
+        try {
+          submission = await createRemoteSubmission(submissionPayload);
+        } catch (error) {
+          if (error?.status === 401) {
+            setIsSubmitting(false);
+            submitAfterAuthRef.current = true;
+            setShowSubmitLoginGate(true);
+            openAuthModal("signIn", "survey-submit");
+            return;
+          }
+
+          if (!shouldFallBackToLocalSave(error)) {
+            throw error;
+          }
+        }
+
+        if (submission?.id) {
+          hasSubmittedRef.current = true;
+          abandonContextRef.current = {
+            ...abandonContextRef.current,
+            hasSubmitted: true,
+          };
+          trackEvent("survey_submit_success", {
+            survey_id: SURVEY_ANALYTICS_ID,
+            language,
+            storage_mode: "server",
+            answered_field_count: answeredOverall,
+            total_field_count: totalFields,
+            guide_day_count: Number(guidePricingQuote.guideDayCount),
+            discount_percent: Number(guidePricingQuote.discountPercent),
+            amount: Number(guidePricingQuote.totalAmount),
+            currency: guidePricingQuote.currency,
+          });
+          saveSurveySubmission({
+            ...submission,
+            storageMode: "server",
+          });
+          router.push(`/survey/complete?id=${submission.id}&lang=${language}`);
+          return;
+        }
+
+        const nextSubmissionId = createSurveySubmissionId();
+        const localSubmission = {
+          id: nextSubmissionId,
+          language,
+          contactEmail,
+          applicantName:
+            typeof answers.fullName === "string" ? answers.fullName.trim() : "",
+          answers: {
+            ...answers,
+            contactEmail,
+          },
+          summary: submissionPayload.summary,
+          submittedAt: new Date().toISOString(),
+          guideDayCount: guidePricingQuote.guideDayCount,
+          quotedAmount: guidePricingQuote.totalAmount,
+          quotedCurrency: guidePricingQuote.currency,
+          quotedDisplayLabel: formatPaymentDisplayLabel({
+            amount: guidePricingQuote.totalAmount,
+            currency: guidePricingQuote.currency,
+            language,
+          }),
+          submissionStatus: "awaiting_transfer",
+          isEditable: true,
+          storageMode: "local",
+        };
+        const didSave = saveSurveySubmission(localSubmission);
+
+        if (!didSave) {
+          throw new Error("Failed to save submission locally.");
+        }
+
         hasSubmittedRef.current = true;
         abandonContextRef.current = {
           ...abandonContextRef.current,
@@ -1837,7 +2044,7 @@ export default function SurveyClient({ initialLanguage }) {
         trackEvent("survey_submit_success", {
           survey_id: SURVEY_ANALYTICS_ID,
           language,
-          storage_mode: "server",
+          storage_mode: "local",
           answered_field_count: answeredOverall,
           total_field_count: totalFields,
           guide_day_count: Number(guidePricingQuote.guideDayCount),
@@ -1845,72 +2052,22 @@ export default function SurveyClient({ initialLanguage }) {
           amount: Number(guidePricingQuote.totalAmount),
           currency: guidePricingQuote.currency,
         });
-        saveSurveySubmission({
-          ...submission,
-          storageMode: "server",
+        router.push(`/survey/complete?id=${nextSubmissionId}&lang=${language}`);
+      } catch (error) {
+        console.error(error);
+        trackEvent("survey_submit_error", {
+        survey_id: SURVEY_ANALYTICS_ID,
+        language,
+          step_id: currentStepId,
+          step_number: currentStepIndex + 1,
         });
-        router.push(`/survey/complete?id=${submission.id}&lang=${language}`);
-        return;
+        setSubmitError(
+          mode === "edit"
+            ? error?.message || modeContent.editSubmitError
+            : content.submitError,
+        );
+        setIsSubmitting(false);
       }
-
-      const submissionId = createSurveySubmissionId();
-      const localSubmission = {
-        id: submissionId,
-        language,
-        contactEmail,
-        applicantName:
-          typeof answers.fullName === "string" ? answers.fullName.trim() : "",
-        answers: {
-          ...answers,
-          contactEmail,
-        },
-        summary: submissionPayload.summary,
-        submittedAt: new Date().toISOString(),
-        guideDayCount: guidePricingQuote.guideDayCount,
-        quotedAmount: guidePricingQuote.totalAmount,
-        quotedCurrency: guidePricingQuote.currency,
-        quotedDisplayLabel: formatPaymentDisplayLabel({
-          amount: guidePricingQuote.totalAmount,
-          currency: guidePricingQuote.currency,
-          language,
-        }),
-        submissionStatus: "awaiting_transfer",
-        storageMode: "local",
-      };
-      const didSave = saveSurveySubmission(localSubmission);
-
-      if (!didSave) {
-        throw new Error("Failed to save submission locally.");
-      }
-
-      hasSubmittedRef.current = true;
-      abandonContextRef.current = {
-        ...abandonContextRef.current,
-        hasSubmitted: true,
-      };
-      trackEvent("survey_submit_success", {
-        survey_id: SURVEY_ANALYTICS_ID,
-        language,
-        storage_mode: "local",
-        answered_field_count: answeredOverall,
-        total_field_count: totalFields,
-        guide_day_count: Number(guidePricingQuote.guideDayCount),
-        discount_percent: Number(guidePricingQuote.discountPercent),
-        amount: Number(guidePricingQuote.totalAmount),
-        currency: guidePricingQuote.currency,
-      });
-      router.push(`/survey/complete?id=${submissionId}&lang=${language}`);
-    } catch (error) {
-      console.error(error);
-      trackEvent("survey_submit_error", {
-        survey_id: SURVEY_ANALYTICS_ID,
-        language,
-        step_id: currentStepId,
-        step_number: currentStepIndex + 1,
-      });
-      setSubmitError(content.submitError);
-      setIsSubmitting(false);
-    }
   };
 
   useEffect(() => {
@@ -1923,6 +2080,31 @@ export default function SurveyClient({ initialLanguage }) {
     void runSubmission();
   }, [isAuthenticated, isEmailVerified, isSubmitting]);
 
+  if (mode === "edit" && (isLoadingExistingSubmission || editLoadError)) {
+    return (
+      <main className="survey-page">
+        <section className="survey-shell single">
+          <div className="survey-main-card">
+            <div className="survey-main-header">
+              <div>
+                <span className="survey-card-kicker">{content.sidebarKicker}</span>
+                <h2>{modeContent.editTitle}</h2>
+              </div>
+            </div>
+            <p className="survey-main-description">
+              {isLoadingExistingSubmission ? modeContent.editLoading : editLoadError}
+            </p>
+            <div className="survey-main-actions">
+              <Link className="survey-secondary-button as-link" href={`/account?lang=${language}`}>
+                {modeContent.editBack}
+              </Link>
+            </div>
+          </div>
+        </section>
+      </main>
+    );
+  }
+
   return (
     <main className="survey-page">
       <div className="survey-backdrop survey-backdrop-left" />
@@ -1930,8 +2112,11 @@ export default function SurveyClient({ initialLanguage }) {
 
       <header className="survey-topbar">
         <div className="survey-brand-block">
-          <Link className="survey-back-link" href={`/?lang=${language}`}>
-            {content.back}
+          <Link
+            className="survey-back-link"
+            href={mode === "edit" ? `/account?lang=${language}` : `/?lang=${language}`}
+          >
+            {mode === "edit" ? modeContent.editBack : content.back}
           </Link>
           <div className="survey-brandmark">{content.brand}</div>
         </div>
@@ -1965,11 +2150,11 @@ export default function SurveyClient({ initialLanguage }) {
       </header>
 
       <section className="survey-hero">
-        <div className="survey-hero-copy">
-          <span className="survey-kicker">{content.sidebarKicker}</span>
-          <h1>{content.title}</h1>
-          <p>{content.subtitle}</p>
-        </div>
+          <div className="survey-hero-copy">
+            <span className="survey-kicker">{content.sidebarKicker}</span>
+            <h1>{mode === "edit" ? modeContent.editTitle : content.title}</h1>
+            <p>{mode === "edit" ? modeContent.editSubtitle : content.subtitle}</p>
+          </div>
       </section>
 
       <section className="survey-shell">
@@ -1977,7 +2162,7 @@ export default function SurveyClient({ initialLanguage }) {
           <div className="survey-side-card">
             <span className="survey-card-kicker">{content.sidebarKicker}</span>
             <h2>{content.sidebarTitle}</h2>
-            <p>{content.sidebarText}</p>
+            <p>{mode === "edit" ? modeContent.editSidebarText : content.sidebarText}</p>
 
             <div className="survey-progress-card">
               <span>{content.progressLabel}</span>
@@ -2180,9 +2365,13 @@ export default function SurveyClient({ initialLanguage }) {
               type="button"
             >
               {isSubmitting
-                ? content.submitting
+                ? mode === "edit"
+                  ? modeContent.editSubmitting
+                  : content.submitting
                 : currentStepIndex === steps.length - 1
-                  ? content.finish
+                  ? mode === "edit"
+                    ? modeContent.editFinish
+                    : content.finish
                   : content.next}
             </button>
           </div>
