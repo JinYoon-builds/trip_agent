@@ -1,5 +1,7 @@
 # Next Session Handoff
 
+> Historical handoff note only. This file is not the canonical source for the current product state. Use [`README.md`](/Users/apple/Documents/100%20Project/trip_agent/README.md) first.
+
 ## Current State
 
 - The landing page, survey page, and completion page now support 3 separate language versions:
