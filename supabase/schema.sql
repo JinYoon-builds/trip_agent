@@ -13,27 +13,192 @@ create table if not exists public.survey_submissions (
   user_id uuid references auth.users(id) on delete set null,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
-  language text not null check (language in ('ko', 'zh')),
+  language text not null default 'zh',
   contact_email text not null,
+  applicant_name text,
   answers jsonb not null,
   summary jsonb not null default '[]'::jsonb,
-  payment_status text not null default 'awaiting_manual_payment',
-  payment_amount numeric(10,2),
-  payment_currency text,
-  payment_display_label text not null default '₩200,000',
-  paypal_order_id text,
-  paypal_capture_id text,
+  submission_status text not null default 'awaiting_transfer',
+  guide_day_count integer not null default 1,
+  quoted_amount numeric(10,2) not null default 0,
+  quoted_currency text not null default 'CNY',
+  quoted_display_label text not null default 'CNY 0',
   email_sent_at timestamptz,
   email_send_error text
 );
 
-create unique index if not exists survey_submissions_paypal_order_id_key
-  on public.survey_submissions (paypal_order_id)
-  where paypal_order_id is not null;
+alter table public.survey_submissions
+  add column if not exists user_id uuid references auth.users(id) on delete set null,
+  add column if not exists applicant_name text,
+  add column if not exists submission_status text,
+  add column if not exists guide_day_count integer,
+  add column if not exists quoted_amount numeric(10,2),
+  add column if not exists quoted_currency text,
+  add column if not exists quoted_display_label text,
+  add column if not exists email_sent_at timestamptz,
+  add column if not exists email_send_error text;
 
-create unique index if not exists survey_submissions_paypal_capture_id_key
-  on public.survey_submissions (paypal_capture_id)
-  where paypal_capture_id is not null;
+update public.survey_submissions
+set language = 'en'
+where language = 'en';
+
+alter table public.survey_submissions
+  drop constraint if exists survey_submissions_language_check;
+
+alter table public.survey_submissions
+  add constraint survey_submissions_language_check
+  check (language in ('ko', 'zh', 'en'));
+
+update public.survey_submissions
+set applicant_name = nullif(trim(coalesce(answers ->> 'fullName', '')), '')
+where applicant_name is null;
+
+update public.survey_submissions
+set guide_day_count = greatest(
+  1,
+  case
+    when jsonb_typeof(answers -> 'guideDates') = 'array'
+      then jsonb_array_length(answers -> 'guideDates')
+    else 1
+  end
+)
+where guide_day_count is null;
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'survey_submissions'
+      and column_name = 'payment_amount'
+  ) then
+    execute $sql$
+      update public.survey_submissions
+      set quoted_amount = coalesce(payment_amount, quoted_amount, 0)
+      where quoted_amount is null
+    $sql$;
+  else
+    update public.survey_submissions
+    set quoted_amount = coalesce(quoted_amount, 0)
+    where quoted_amount is null;
+  end if;
+end
+$$;
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'survey_submissions'
+      and column_name = 'payment_currency'
+  ) then
+    execute $sql$
+      update public.survey_submissions
+      set quoted_currency = coalesce(nullif(payment_currency, ''), quoted_currency, 'CNY')
+      where quoted_currency is null or quoted_currency = ''
+    $sql$;
+  else
+    update public.survey_submissions
+    set quoted_currency = coalesce(nullif(quoted_currency, ''), 'CNY')
+    where quoted_currency is null or quoted_currency = '';
+  end if;
+end
+$$;
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'survey_submissions'
+      and column_name = 'payment_display_label'
+  ) then
+    execute $sql$
+      update public.survey_submissions
+      set quoted_display_label = coalesce(
+        nullif(payment_display_label, ''),
+        quoted_display_label,
+        concat(quoted_currency, ' ', quoted_amount::text)
+      )
+      where quoted_display_label is null or quoted_display_label = ''
+    $sql$;
+  else
+    update public.survey_submissions
+    set quoted_display_label = coalesce(
+      nullif(quoted_display_label, ''),
+      concat(quoted_currency, ' ', quoted_amount::text)
+    )
+    where quoted_display_label is null or quoted_display_label = '';
+  end if;
+end
+$$;
+
+do $$
+begin
+  if exists (
+    select 1
+    from information_schema.columns
+    where table_schema = 'public'
+      and table_name = 'survey_submissions'
+      and column_name = 'payment_status'
+  ) then
+    execute $sql$
+      update public.survey_submissions
+      set submission_status = case
+        when payment_status in ('paid') then 'paid'
+        when payment_status in ('payment_pending', 'payment_created') then 'payment_review'
+        else 'awaiting_transfer'
+      end
+      where submission_status is null or submission_status = ''
+    $sql$;
+  else
+    update public.survey_submissions
+    set submission_status = coalesce(nullif(submission_status, ''), 'awaiting_transfer')
+    where submission_status is null or submission_status = '';
+  end if;
+end
+$$;
+
+alter table public.survey_submissions
+  alter column submission_status set default 'awaiting_transfer',
+  alter column submission_status set not null,
+  alter column guide_day_count set default 1,
+  alter column guide_day_count set not null,
+  alter column quoted_amount set default 0,
+  alter column quoted_amount set not null,
+  alter column quoted_currency set default 'CNY',
+  alter column quoted_currency set not null,
+  alter column quoted_display_label set default 'CNY 0',
+  alter column quoted_display_label set not null;
+
+alter table public.survey_submissions
+  drop constraint if exists survey_submissions_submission_status_check;
+
+alter table public.survey_submissions
+  add constraint survey_submissions_submission_status_check
+  check (submission_status in ('awaiting_transfer', 'payment_review', 'paid', 'matched', 'cancelled'));
+
+alter table public.survey_submissions
+  drop constraint if exists survey_submissions_guide_day_count_check;
+
+alter table public.survey_submissions
+  add constraint survey_submissions_guide_day_count_check
+  check (guide_day_count > 0);
+
+alter table public.survey_submissions
+  drop column if exists payment_status,
+  drop column if exists payment_amount,
+  drop column if exists payment_currency,
+  drop column if exists payment_display_label,
+  drop column if exists paypal_order_id,
+  drop column if exists paypal_capture_id;
+
+drop index if exists public.survey_submissions_paypal_order_id_key;
+drop index if exists public.survey_submissions_paypal_capture_id_key;
 
 create index if not exists survey_submissions_contact_email_idx
   on public.survey_submissions (contact_email);
@@ -41,8 +206,11 @@ create index if not exists survey_submissions_contact_email_idx
 create index if not exists survey_submissions_user_id_idx
   on public.survey_submissions (user_id);
 
-create index if not exists survey_submissions_payment_status_idx
-  on public.survey_submissions (payment_status);
+create index if not exists survey_submissions_submission_status_idx
+  on public.survey_submissions (submission_status);
+
+create index if not exists survey_submissions_created_at_idx
+  on public.survey_submissions (created_at desc);
 
 create index if not exists profiles_role_idx
   on public.profiles (role);
@@ -88,7 +256,8 @@ insert into public.profiles (id, email, role)
 select users.id, users.email, 'customer'
 from auth.users as users
 on conflict (id) do update
-  set email = excluded.email;
+  set email = excluded.email,
+      updated_at = now();
 
 drop trigger if exists survey_submissions_set_updated_at on public.survey_submissions;
 drop trigger if exists profiles_set_updated_at on public.profiles;

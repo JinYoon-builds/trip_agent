@@ -12,7 +12,7 @@
   - `한국어`
   - `中文`
   - `English`
-- Language handling is normalized through `lib/language.js` so page routing, submission payloads, and PayPal locale use the same `ko/zh/en` rules.
+- Language handling is normalized through `lib/language.js` so page routing and submission payloads use the same `ko/zh/en` rules.
 - The survey submit flow now prefers server save via Supabase and falls back to local storage only if the server path is unavailable.
 - The survey has been simplified to a 2-step structure.
 - Travel dates are no longer free-text:
@@ -36,7 +36,6 @@
   - travel summary first
   - manual payment section after the summary
   - server submissions now show a full WeChat Pay QR card, sender-name guidance, and next-step guidance
-- PayPal checkout routes still exist in the repo, but the live completion page is now centered on the WeChat Pay manual-payment flow.
 - Supabase insert was verified against the `survey_submissions` table.
 - After the survey/date input update, a fresh local test submission was also created successfully and the completion page opened correctly.
 - On April 15, 2026, the production environment was updated end-to-end:
@@ -66,9 +65,8 @@
 - There are still 2 local screenshot files in the repo root that were not committed:
   - `paid-state-mobile.png`
   - `paid-state-mobile-final.png`
-- The following sensitive keys were pasted into chat during setup and should be rotated after this MVP round:
+- The following sensitive key was pasted into chat during setup and should be rotated after this MVP round:
   - Supabase `service_role`
-  - PayPal `client secret`
 - `NOTIFICATION_EMAIL` can now accept multiple recipients as a comma-separated list. Replace the current testing target with the final operator inbox list before live launch.
 - There are several untracked local verification images and notes in the repo root; they were intentionally not committed.
 
@@ -102,8 +100,8 @@
 
 1. Re-run one more production survey submission to confirm repeatability.
 2. Check `survey_submissions` for the latest rows:
-   - `payment_status = awaiting_manual_payment`
-   - `payment_amount` / `payment_display_label` match the selected guide dates
+   - `submission_status = awaiting_transfer`
+   - `quoted_amount` / `quoted_display_label` match the selected guide dates
 3. Confirm Resend delivery logs for the latest production submit email.
 4. Decide whether `alerts@liu-unnie.com` should remain the sender or move to a dedicated support/ops sender.
 
@@ -111,13 +109,13 @@
 
 1. Build a minimal operator admin page for manual payment checking.
    - list recent submissions
-   - show sender name, quoted amount, contact email, submitted time, and payment status
-   - make it easy to filter `awaiting_manual_payment`
+   - show sender name, quoted amount, contact email, submitted time, and submission status
+   - make it easy to filter `awaiting_transfer`
 2. Define the manual post-payment workflow.
    - how ops marks a submission as payment-confirmed
    - how the matched guide follow-up is tracked
 3. Rotate sensitive keys that were exposed during MVP setup.
-4. Remove or archive the unused PayPal checkout path if the manual-payment direction is now final.
+4. Add an operator action to move submissions from `awaiting_transfer` to `payment_review` / `paid`.
 5. Review the English copy quality once the core operator flow is settled.
 
 ## Useful Files
@@ -134,7 +132,6 @@
 - `lib/resend.js`
 - `lib/supabase-admin.js`
 - `supabase/schema.sql`
-- `docs/payments-mvp.md`
 
 ## Test URLs
 
