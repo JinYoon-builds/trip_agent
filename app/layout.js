@@ -12,7 +12,7 @@ const shouldUseGtm = Boolean(GTM_ID);
 const shouldUseDirectGa = !shouldUseGtm && Boolean(GA_MEASUREMENT_ID);
 
 export const metadata = {
-  title: "liu-unnie",
+  title: "刘Unnie",
   description: "Private remote tourism guide matching service for Chinese travelers in Korea.",
 };
 

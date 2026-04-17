@@ -27,7 +27,7 @@ const SURVEY_ANALYTICS_ID = "guide_matching_v1";
 
 const surveyContent = {
   en: {
-    brand: "liu-unnie",
+    brand: "刘Unnie",
     back: "Back to home",
     title: "All-in-one Travel Service",
     subtitle:
@@ -233,7 +233,7 @@ const surveyContent = {
     ],
   },
   ko: {
-    brand: "liu-unnie",
+    brand: "刘Unnie",
     back: "랜딩으로 돌아가기",
     title: "올인원 여행 서비스",
     subtitle:
@@ -439,7 +439,7 @@ const surveyContent = {
     ],
   },
   zh: {
-    brand: "liu-unnie",
+    brand: "刘Unnie",
     back: "返回首页",
     title: "一站式旅行服务",
     subtitle:

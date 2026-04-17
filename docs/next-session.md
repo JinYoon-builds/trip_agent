@@ -48,11 +48,11 @@
 ## Latest Decision
 
 - On April 15, 2026, the domain decision was finalized as `liu-unnie.com`.
-- The product-facing brand name is now `liu-unnie`.
+- The product-facing brand name is now `刘Unnie`.
 - The production MVP stack is now connected:
   - Vercel domain: `liu-unnie.com`
   - payment collection UI: `WeChat Pay` manual QR flow
-  - Resend sender: `liu-unnie <alerts@liu-unnie.com>`
+  - Resend sender: `刘Unnie <alerts@liu-unnie.com>`
   - operator notification target: `jin.yoon.builds@gmail.com`
   - old production main state is preserved on remote branch `legacy-main`
 

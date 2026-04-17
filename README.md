@@ -1,4 +1,4 @@
-# liu-unnie
+# 刘Unnie
 
 중국인 관광객을 위한 현지 대학생 가이드 매칭 MVP입니다.  
 현재는 설문 제출 후 `WeChat Pay` 수동 입금 안내로 이어지고, 운영팀이 입금을 확인한 뒤 가이드가 직접 연락하는 흐름으로 구성되어 있습니다.
@@ -20,7 +20,7 @@
 
 프로덕션 완료 페이지 기준 캡처입니다.
 
-<img src="./docs/assets/production-complete-page-qr-fixed.png" alt="liu-unnie completion page" width="360" />
+<img src="./docs/assets/production-complete-page-qr-fixed.png" alt="刘Unnie completion page" width="360" />
 
 ## What Works
 
