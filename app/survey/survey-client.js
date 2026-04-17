@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import { trackEvent } from "../../lib/analytics";
 import { normalizeSiteLanguage } from "../../lib/language";
 import {
+  formatDailyRateDisplayLabel,
   formatPaymentDisplayLabel,
   getGuideDatesFromAnswers,
   getGuideDayCountFromAnswers,
@@ -58,18 +59,17 @@ const surveyContent = {
     pricingTitle: "Guide Pricing",
     pricingEmpty: "Select at least one guide date to see the payment amount.",
     pricingGuideDaysLabel: "Guide Days",
-    pricingDiscountLabel: "Discount",
+    pricingDailyRateLabel: "Daily Rate",
     pricingTotalLabel: "Estimated Payment",
     inlineQuoteTitle: "Estimated Quote",
     pricingHint:
       "Only the dates you select for a guide will be charged at checkout.",
-    pricingDiscountValue: (discountPercent) =>
-      discountPercent > 0 ? `${discountPercent}% off` : "No discount",
+    pricingDailyRateValue: (amountLabel) => amountLabel,
     guidePricingNoticeTitle: "Guide Pricing Rules",
-    guidePricingNoticeDailyRate: (amountLabel) => `1 day: ${amountLabel}`,
-    guidePricingNoticeTwoDays: "2 days: 10% discount",
-    guidePricingNoticeThreeDays: "3+ days: 20% discount",
-    guidePricingNoticeExample: (amountLabel) => `Example: 2 days = ${amountLabel}`,
+    guidePricingNoticeOneDay: (amountLabel) => `1 day: ${amountLabel}`,
+    guidePricingNoticeTwoDays: (amountLabel) => `2 days: ${amountLabel}`,
+    guidePricingNoticeThreeDays: (amountLabel) => `3+ days: ${amountLabel}`,
+    guidePricingNoticeExample: (amountLabel) => `Example: 2 days = ${amountLabel} total`,
     guidePricingNoticeFootnote: "You only pay for the dates you select for a guide.",
     arrivalLabel: "Start Date",
     departureLabel: "End Date",
@@ -89,6 +89,7 @@ const surveyContent = {
     selectionCount: "Selected",
     maxSelectionText: (count) => `Choose up to ${count}`,
     summaryWechatLabel: "WeChat ID",
+    summaryPhoneLabel: "Phone Number",
     steps: [
       {
         id: "basicInformation",
@@ -147,6 +148,13 @@ const surveyContent = {
             kind: "text",
             label: "WeChat ID (optional)",
             placeholder: "e.g. lieunnie88",
+          },
+          {
+            id: "phoneNumber",
+            kind: "text",
+            inputType: "tel",
+            label: "Phone Number (optional)",
+            placeholder: "e.g. +82 10-1234-5678",
           },
         ],
       },
@@ -264,18 +272,17 @@ const surveyContent = {
     pricingTitle: "가이드 요금",
     pricingEmpty: "가이드가 필요한 날짜를 하나 이상 선택하면 결제 금액이 바로 표시됩니다.",
     pricingGuideDaysLabel: "선택 일수",
-    pricingDiscountLabel: "할인",
+    pricingDailyRateLabel: "일일 요금",
     pricingTotalLabel: "예상 결제 금액",
     inlineQuoteTitle: "예상 견적",
     pricingHint:
       "체크아웃에서는 선택한 가이드 날짜에 대해서만 결제가 진행됩니다.",
-    pricingDiscountValue: (discountPercent) =>
-      discountPercent > 0 ? `${discountPercent}% 할인` : "할인 없음",
+    pricingDailyRateValue: (amountLabel) => amountLabel,
     guidePricingNoticeTitle: "가이드 요금 안내",
-    guidePricingNoticeDailyRate: (amountLabel) => `1일: ${amountLabel}`,
-    guidePricingNoticeTwoDays: "2일: 10% 할인",
-    guidePricingNoticeThreeDays: "3일 이상: 20% 할인",
-    guidePricingNoticeExample: (amountLabel) => `예: 2일 선택 시 ${amountLabel}`,
+    guidePricingNoticeOneDay: (amountLabel) => `1일: ${amountLabel}`,
+    guidePricingNoticeTwoDays: (amountLabel) => `2일: ${amountLabel}`,
+    guidePricingNoticeThreeDays: (amountLabel) => `3일 이상: ${amountLabel}`,
+    guidePricingNoticeExample: (amountLabel) => `예: 2일 선택 시 총 ${amountLabel}`,
     guidePricingNoticeFootnote: "가이드가 필요한 날짜에 대해서만 결제됩니다.",
     arrivalLabel: "시작일",
     departureLabel: "종료일",
@@ -295,6 +302,7 @@ const surveyContent = {
     selectionCount: "선택",
     maxSelectionText: (count) => `최대 ${count}개 선택`,
     summaryWechatLabel: "WeChat ID",
+    summaryPhoneLabel: "전화번호",
     steps: [
       {
         id: "basicInformation",
@@ -353,6 +361,13 @@ const surveyContent = {
             kind: "text",
             label: "WeChat ID (선택)",
             placeholder: "예: lieunnie88",
+          },
+          {
+            id: "phoneNumber",
+            kind: "text",
+            inputType: "tel",
+            label: "전화번호 (선택)",
+            placeholder: "예: 010-1234-5678",
           },
         ],
       },
@@ -470,17 +485,16 @@ const surveyContent = {
     pricingTitle: "向导费用",
     pricingEmpty: "先选择至少一天需要向导的日期，系统就会立即显示支付金额。",
     pricingGuideDaysLabel: "选择天数",
-    pricingDiscountLabel: "折扣",
+    pricingDailyRateLabel: "每日费用",
     pricingTotalLabel: "预计支付金额",
     inlineQuoteTitle: "预计报价",
     pricingHint:
       "结账时只会按你选择需要向导的日期收费。",
-    pricingDiscountValue: (discountPercent) =>
-      discountPercent > 0 ? `${discountPercent}% 折扣` : "无折扣",
+    pricingDailyRateValue: (amountLabel) => amountLabel,
     guidePricingNoticeTitle: "向导费用说明",
-    guidePricingNoticeDailyRate: (amountLabel) => `1 天：${amountLabel}`,
-    guidePricingNoticeTwoDays: "2 天：9 折",
-    guidePricingNoticeThreeDays: "3 天及以上：8 折",
+    guidePricingNoticeOneDay: (amountLabel) => `1 天：${amountLabel}`,
+    guidePricingNoticeTwoDays: (amountLabel) => `2 天：${amountLabel}`,
+    guidePricingNoticeThreeDays: (amountLabel) => `3 天及以上：${amountLabel}`,
     guidePricingNoticeExample: (amountLabel) => `例如：2 天共 ${amountLabel}`,
     guidePricingNoticeFootnote: "只会按你选择需要向导的日期收费。",
     arrivalLabel: "开始日期",
@@ -501,6 +515,7 @@ const surveyContent = {
     selectionCount: "已选",
     maxSelectionText: (count) => `最多选择 ${count} 项`,
     summaryWechatLabel: "WeChat ID",
+    summaryPhoneLabel: "电话号码",
     steps: [
       {
         id: "basicInformation",
@@ -559,6 +574,13 @@ const surveyContent = {
             kind: "text",
             label: "WeChat ID（选填）",
             placeholder: "例如：lieunnie88",
+          },
+          {
+            id: "phoneNumber",
+            kind: "text",
+            inputType: "tel",
+            label: "电话号码（选填）",
+            placeholder: "例如：138 0000 0000",
           },
         ],
       },
@@ -1264,8 +1286,8 @@ export default function SurveyClient({ initialLanguage }) {
         language,
       })
     : "";
-  const oneDayPricingLabel = formatPaymentDisplayLabel({
-    amount: oneDayPricingQuote.totalAmount,
+  const oneDayDailyRateLabel = formatDailyRateDisplayLabel({
+    amount: oneDayPricingQuote.dailyRate,
     currency: oneDayPricingQuote.currency,
     language,
   });
@@ -1274,6 +1296,24 @@ export default function SurveyClient({ initialLanguage }) {
     currency: twoDayPricingQuote.currency,
     language,
   });
+  const twoDayDailyRateLabel = formatDailyRateDisplayLabel({
+    amount: twoDayPricingQuote.dailyRate,
+    currency: twoDayPricingQuote.currency,
+    language,
+  });
+  const threeDayPricingQuote = getGuidePricingQuote({ guideDayCount: 3 });
+  const threeDayDailyRateLabel = formatDailyRateDisplayLabel({
+    amount: threeDayPricingQuote.dailyRate,
+    currency: threeDayPricingQuote.currency,
+    language,
+  });
+  const liveDailyRateLabel = livePricingQuote
+    ? formatDailyRateDisplayLabel({
+        amount: livePricingQuote.dailyRate,
+        currency: livePricingQuote.currency,
+        language,
+      })
+    : "";
 
   useEffect(() => {
     if (!currentStep) {
@@ -1619,6 +1659,8 @@ export default function SurveyClient({ initialLanguage }) {
     });
     const wechatId =
       typeof answers.wechatId === "string" ? answers.wechatId.trim() : "";
+    const phoneNumber =
+      typeof answers.phoneNumber === "string" ? answers.phoneNumber.trim() : "";
 
     const summaryItems = [
       { label: content.summaryItems[0].label, value: fullName },
@@ -1642,6 +1684,13 @@ export default function SurveyClient({ initialLanguage }) {
       summaryItems.push({
         label: content.summaryWechatLabel,
         value: wechatId,
+      });
+    }
+
+    if (phoneNumber) {
+      summaryItems.push({
+        label: content.summaryPhoneLabel,
+        value: phoneNumber,
       });
     }
 
@@ -1950,9 +1999,9 @@ export default function SurveyClient({ initialLanguage }) {
                   <strong>{selectedGuideDayCount}</strong>
                 </div>
                 <div className="survey-summary-row">
-                  <span>{content.pricingDiscountLabel}</span>
+                  <span>{content.pricingDailyRateLabel}</span>
                   <strong>
-                    {content.pricingDiscountValue(livePricingQuote.discountPercent)}
+                    {content.pricingDailyRateValue(liveDailyRateLabel)}
                   </strong>
                 </div>
                 <div className="survey-summary-row">
@@ -2006,10 +2055,10 @@ export default function SurveyClient({ initialLanguage }) {
                       </strong>
                       <div className="survey-pricing-note-list">
                         <span>
-                          {content.guidePricingNoticeDailyRate(oneDayPricingLabel)}
+                          {content.guidePricingNoticeOneDay(oneDayDailyRateLabel)}
                         </span>
-                        <span>{content.guidePricingNoticeTwoDays}</span>
-                        <span>{content.guidePricingNoticeThreeDays}</span>
+                        <span>{content.guidePricingNoticeTwoDays(twoDayDailyRateLabel)}</span>
+                        <span>{content.guidePricingNoticeThreeDays(threeDayDailyRateLabel)}</span>
                       </div>
                       <div className="survey-pricing-note-footer">
                         <strong>
@@ -2041,9 +2090,9 @@ export default function SurveyClient({ initialLanguage }) {
                           <strong>{selectedGuideDayCount}</strong>
                         </div>
                         <div className="survey-summary-row">
-                          <span>{content.pricingDiscountLabel}</span>
+                          <span>{content.pricingDailyRateLabel}</span>
                           <strong>
-                            {content.pricingDiscountValue(livePricingQuote.discountPercent)}
+                            {content.pricingDailyRateValue(liveDailyRateLabel)}
                           </strong>
                         </div>
                         <div className="survey-summary-row">

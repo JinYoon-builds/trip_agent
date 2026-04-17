@@ -18,7 +18,7 @@ export const metadata = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="ko">
+    <html lang="zh">
       {shouldUseGtm ? (
         <Script id="gtm-init" strategy="beforeInteractive">
           {`

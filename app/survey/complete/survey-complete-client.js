@@ -10,6 +10,7 @@ import {
   MANUAL_PAYMENT_QR_IMAGE,
 } from "../../../lib/manual-payment";
 import {
+  formatDailyRateDisplayLabel,
   formatPaymentDisplayLabel,
   getGuideDayCountFromAnswers,
   getGuidePricingQuote,
@@ -56,10 +57,8 @@ const completionContent = {
     paymentStatusProcessing: "Waiting for manual review",
     paymentStatusPaid: "Payment completed",
     paymentReadyLabel: "Manual payment",
-    paymentBreakdown: (guideDayCount, discountPercent) =>
-      discountPercent > 0
-        ? `${guideDayCount} guide days selected · ${discountPercent}% discount applied`
-        : `${guideDayCount} guide day selected · standard rate applied`,
+    paymentBreakdown: (guideDayCount, dailyRateLabel) =>
+      `${guideDayCount} guide day${guideDayCount > 1 ? "s" : ""} selected · ${dailyRateLabel}`,
     manualPaymentTitle: "Pay with WeChat Pay",
     manualPaymentDescription:
       "Open WeChat Pay, scan the QR, and transfer the quoted amount. For faster matching, use the same sender name as the name on this request.",
@@ -130,10 +129,8 @@ const completionContent = {
     paymentStatusProcessing: "운영팀 확인 중",
     paymentStatusPaid: "결제 완료",
     paymentReadyLabel: "수동 결제",
-    paymentBreakdown: (guideDayCount, discountPercent) =>
-      discountPercent > 0
-        ? `가이드 ${guideDayCount}일 선택 · ${discountPercent}% 할인 적용`
-        : `가이드 ${guideDayCount}일 선택 · 기본 요금 적용`,
+    paymentBreakdown: (guideDayCount, dailyRateLabel) =>
+      `가이드 ${guideDayCount}일 선택 · ${dailyRateLabel}`,
     manualPaymentTitle: "위챗페이로 결제하기",
     manualPaymentDescription:
       "위챗페이에서 QR을 스캔한 뒤, 이 페이지에 표시된 금액만큼 입금해 주세요. 빠른 확인을 위해 입금자명을 신청자명과 동일하게 맞춰 주세요.",
@@ -202,10 +199,8 @@ const completionContent = {
     paymentStatusProcessing: "人工确认中",
     paymentStatusPaid: "支付完成",
     paymentReadyLabel: "手动付款",
-    paymentBreakdown: (guideDayCount, discountPercent) =>
-      discountPercent > 0
-        ? `已选择 ${guideDayCount} 天向导 · 已应用 ${discountPercent}% 折扣`
-        : `已选择 ${guideDayCount} 天向导 · 按标准价格计算`,
+    paymentBreakdown: (guideDayCount, dailyRateLabel) =>
+      `已选择 ${guideDayCount} 天向导 · ${dailyRateLabel}`,
     manualPaymentTitle: "使用微信支付付款",
     manualPaymentDescription:
       "请打开微信支付扫描二维码，并按本页显示的金额转账。为了更快核对，请让付款人姓名与申请人姓名一致。",
@@ -374,6 +369,11 @@ export default function SurveyCompleteClient({
       currency: pricingQuote.currency,
       language,
     });
+  const dailyRateLabel = formatDailyRateDisplayLabel({
+    amount: pricingQuote.dailyRate,
+    currency: pricingQuote.currency,
+    language,
+  });
   const applicantName =
     typeof submission?.answers?.fullName === "string" &&
     submission.answers.fullName.trim() !== ""
@@ -531,7 +531,7 @@ export default function SurveyCompleteClient({
                 <p className="survey-payment-text">
                   {content.paymentBreakdown(
                     guideDayCount,
-                    pricingQuote.discountPercent,
+                    dailyRateLabel,
                   )}
                 </p>
               </div>
