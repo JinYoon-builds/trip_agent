@@ -4,6 +4,8 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
 
+import AuthButtons from "../../components/auth-buttons";
+import { useAuth } from "../../components/auth-provider";
 import { trackEvent } from "../../lib/analytics";
 import { normalizeSiteLanguage } from "../../lib/language";
 import {
@@ -1170,11 +1172,13 @@ function SurveyField({
 export default function SurveyClient({ initialLanguage }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { isAuthenticated, isEmailVerified, openAuthModal } = useAuth();
   const [language, setLanguage] = useState(normalizeSiteLanguage(initialLanguage));
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [answers, setAnswers] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState("");
+  const [showSubmitLoginGate, setShowSubmitLoginGate] = useState(false);
   const trackedFieldStartsRef = useRef(new Set());
   const lastDateRangeKeyRef = useRef("");
   const lastStepViewKeyRef = useRef("");
@@ -1183,6 +1187,7 @@ export default function SurveyClient({ initialLanguage }) {
   const hasSubmittedRef = useRef(false);
   const hasTrackedAbandonRef = useRef(false);
   const abandonContextRef = useRef(null);
+  const submitAfterAuthRef = useRef(false);
 
   useEffect(() => {
     setLanguage(normalizeSiteLanguage(initialLanguage));
@@ -1697,7 +1702,7 @@ export default function SurveyClient({ initialLanguage }) {
     return summaryItems;
   };
 
-  const handleSubmit = async () => {
+  const runSubmission = async () => {
     const guidePricingQuote = getGuidePricingQuote({
       guideDayCount: getGuideDayCountFromAnswers(answers),
     });
@@ -1772,6 +1777,27 @@ export default function SurveyClient({ initialLanguage }) {
       return;
     }
 
+    if (!isAuthenticated) {
+      submitAfterAuthRef.current = true;
+      setShowSubmitLoginGate(true);
+      openAuthModal("signIn", "survey-submit");
+      return;
+    }
+
+    if (!isEmailVerified) {
+      submitAfterAuthRef.current = false;
+      setShowSubmitLoginGate(true);
+      setSubmitError(
+        language === "ko"
+          ? "설문을 제출하려면 회원가입 후 이메일 인증을 먼저 완료해 주세요."
+          : language === "en"
+            ? "Please complete email verification before submitting the survey."
+            : "提交问卷前请先完成邮箱验证。",
+      );
+      openAuthModal("signIn", "survey-submit");
+      return;
+    }
+
     setIsSubmitting(true);
     setSubmitError("");
 
@@ -1789,6 +1815,14 @@ export default function SurveyClient({ initialLanguage }) {
       try {
         submission = await createRemoteSubmission(submissionPayload);
       } catch (error) {
+        if (error?.status === 401) {
+          setIsSubmitting(false);
+          submitAfterAuthRef.current = true;
+          setShowSubmitLoginGate(true);
+          openAuthModal("signIn", "survey-submit");
+          return;
+        }
+
         if (!shouldFallBackToLocalSave(error)) {
           throw error;
         }
@@ -1824,20 +1858,23 @@ export default function SurveyClient({ initialLanguage }) {
         id: submissionId,
         language,
         contactEmail,
+        applicantName:
+          typeof answers.fullName === "string" ? answers.fullName.trim() : "",
         answers: {
           ...answers,
           contactEmail,
         },
         summary: submissionPayload.summary,
         submittedAt: new Date().toISOString(),
-        paymentAmount: guidePricingQuote.totalAmount,
-        paymentCurrency: guidePricingQuote.currency,
-        paymentDisplayLabel: formatPaymentDisplayLabel({
+        guideDayCount: guidePricingQuote.guideDayCount,
+        quotedAmount: guidePricingQuote.totalAmount,
+        quotedCurrency: guidePricingQuote.currency,
+        quotedDisplayLabel: formatPaymentDisplayLabel({
           amount: guidePricingQuote.totalAmount,
           currency: guidePricingQuote.currency,
           language,
         }),
-        paymentStatus: "awaiting_manual_payment",
+        submissionStatus: "awaiting_transfer",
         storageMode: "local",
       };
       const didSave = saveSurveySubmission(localSubmission);
@@ -1876,6 +1913,16 @@ export default function SurveyClient({ initialLanguage }) {
     }
   };
 
+  useEffect(() => {
+    if (!isAuthenticated || !isEmailVerified || !submitAfterAuthRef.current || isSubmitting) {
+      return;
+    }
+
+    submitAfterAuthRef.current = false;
+    setShowSubmitLoginGate(false);
+    void runSubmission();
+  }, [isAuthenticated, isEmailVerified, isSubmitting]);
+
   return (
     <main className="survey-page">
       <div className="survey-backdrop survey-backdrop-left" />
@@ -1889,28 +1936,31 @@ export default function SurveyClient({ initialLanguage }) {
           <div className="survey-brandmark">{content.brand}</div>
         </div>
 
-        <div className="language-switch" role="tablist" aria-label="language switch">
-          <button
-            className={language === "ko" ? "lang-chip active" : "lang-chip"}
-            onClick={() => handleLanguageChange("ko")}
-            type="button"
-          >
-            한국어
-          </button>
-          <button
-            className={language === "zh" ? "lang-chip active" : "lang-chip"}
-            onClick={() => handleLanguageChange("zh")}
-            type="button"
-          >
-            中文
-          </button>
-          <button
-            className={language === "en" ? "lang-chip active" : "lang-chip"}
-            onClick={() => handleLanguageChange("en")}
-            type="button"
-          >
-            English
-          </button>
+        <div className="topbar-actions">
+          <div className="language-switch" role="tablist" aria-label="language switch">
+            <button
+              className={language === "ko" ? "lang-chip active" : "lang-chip"}
+              onClick={() => handleLanguageChange("ko")}
+              type="button"
+            >
+              한국어
+            </button>
+            <button
+              className={language === "zh" ? "lang-chip active" : "lang-chip"}
+              onClick={() => handleLanguageChange("zh")}
+              type="button"
+            >
+              中文
+            </button>
+            <button
+              className={language === "en" ? "lang-chip active" : "lang-chip"}
+              onClick={() => handleLanguageChange("en")}
+              type="button"
+            >
+              English
+            </button>
+          </div>
+          <AuthButtons compact language={language} />
         </div>
       </header>
 
@@ -2121,7 +2171,7 @@ export default function SurveyClient({ initialLanguage }) {
               disabled={isSubmitting}
               onClick={
                 currentStepIndex === steps.length - 1
-                  ? handleSubmit
+                  ? () => void runSubmission()
                   : () =>
                       setCurrentStepIndex((prev) =>
                         Math.min(steps.length - 1, prev + 1),
@@ -2136,6 +2186,40 @@ export default function SurveyClient({ initialLanguage }) {
                   : content.next}
             </button>
           </div>
+          {showSubmitLoginGate && currentStepIndex === steps.length - 1 ? (
+            <div className="survey-auth-gate">
+              <strong>
+                {language === "ko"
+                  ? "제출 전 로그인 필요"
+                  : language === "en"
+                    ? "Login needed before submit"
+                    : "提交前需要登录"}
+              </strong>
+              <p>
+                {language === "ko"
+                  ? "설문은 로그인 없이 작성할 수 있지만, 제출하려면 로그인된 계정이 필요합니다."
+                  : language === "en"
+                    ? "You can fill out the survey without logging in, but submitting it requires a logged-in account."
+                    : "你可以先不登录填写问卷，但提交时需要先登录账号。"}
+              </p>
+              <div className="survey-auth-gate-actions">
+                <button
+                  className="survey-secondary-button"
+                  onClick={() => openAuthModal("signIn", "survey-submit")}
+                  type="button"
+                >
+                  {language === "ko" ? "로그인" : language === "en" ? "Log in" : "登录"}
+                </button>
+                <button
+                  className="survey-secondary-button"
+                  onClick={() => openAuthModal("signUp", "survey-submit")}
+                  type="button"
+                >
+                  {language === "ko" ? "회원가입" : language === "en" ? "Sign up" : "注册"}
+                </button>
+              </div>
+            </div>
+          ) : null}
           {submitError ? <p className="survey-submit-error">{submitError}</p> : null}
         </div>
       </section>

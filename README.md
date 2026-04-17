@@ -54,6 +54,7 @@ npm run build
 
 ## Notes
 
-- 현재 결제 UX는 `PayPal`이 아니라 `WeChat Pay` 수동 입금 기준입니다.
+- 결제 연동은 `PayPal` 없이 `WeChat Pay` 수동 입금 기준으로만 동작합니다.
+- `survey_submissions`는 설문 원본 `answers`, 운영용 `summary`, 견적 `quoted_*`, 상태 `submission_status`를 함께 저장합니다.
 - 이전 `main` 상태는 원격 브랜치 `legacy-main`으로 보존되어 있습니다.
 - 다음 우선순위 작업은 `수동 입금 확인을 쉽게 하는 운영용 어드민 페이지`입니다.

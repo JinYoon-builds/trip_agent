@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { buildApiErrorResponse } from "../../../lib/api-error-response";
 import { isResendConfigured } from "../../../lib/integration-config";
+import { requireVerifiedUser } from "../../../lib/request-auth";
 import { sendSubmissionReceivedNotification } from "../../../lib/resend";
 import {
   createSubmissionInsert,
@@ -14,9 +15,13 @@ export const runtime = "nodejs";
 
 export async function POST(request) {
   try {
+    const { user } = await requireVerifiedUser(request);
     const body = await request.json();
     const payload = validateSubmissionPayload(body);
-    const submission = await createSurveySubmission(createSubmissionInsert(payload));
+    const submission = await createSurveySubmission({
+      ...createSubmissionInsert(payload),
+      user_id: user.id,
+    });
     let emailSent = false;
     let emailSendError = null;
 

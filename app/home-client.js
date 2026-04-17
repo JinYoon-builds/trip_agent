@@ -4,6 +4,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 
+import AuthButtons from "../components/auth-buttons";
 import { trackEvent } from "../lib/analytics";
 import { normalizeSiteLanguage } from "../lib/language";
 
@@ -109,6 +110,7 @@ export default function HomeClient({ initialLanguage }) {
               English
             </button>
           </div>
+          <AuthButtons compact language={language} />
         </div>
       </header>
 

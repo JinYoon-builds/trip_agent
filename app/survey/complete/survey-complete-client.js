@@ -263,23 +263,16 @@ function formatSubmissionTimestamp(timestamp, language) {
   }
 }
 
-function getPaymentStatusLabel(content, paymentStatus) {
-  if (paymentStatus === "paid") {
+function getSubmissionStatusLabel(content, submissionStatus) {
+  if (submissionStatus === "paid") {
     return content.paymentStatusPaid;
   }
 
-  if (paymentStatus === "payment_created") {
-    return content.paymentStatusCreated;
-  }
-
-  if (paymentStatus === "payment_pending") {
+  if (submissionStatus === "payment_review") {
     return content.paymentStatusProcessing;
   }
 
-  if (
-    paymentStatus === "awaiting_manual_payment" ||
-    paymentStatus === "pending_payment"
-  ) {
+  if (submissionStatus === "awaiting_transfer") {
     return content.paymentStatusPending;
   }
 
@@ -358,20 +351,23 @@ export default function SurveyCompleteClient({
 
   const content = completionContent[language];
   const isServerSubmission = loadMode === "server";
-  const paymentStatus = submission?.paymentStatus ?? "awaiting_manual_payment";
-  const isPaid = paymentStatus === "paid";
-  const guideDayCount = getGuideDayCountFromAnswers(submission?.answers);
+  const submissionStatus = submission?.submissionStatus ?? "awaiting_transfer";
+  const isPaid = submissionStatus === "paid";
+  const guideDayCount =
+    Number.isInteger(Number(submission?.guideDayCount)) && Number(submission?.guideDayCount) > 0
+      ? Number(submission.guideDayCount)
+      : getGuideDayCountFromAnswers(submission?.answers);
   const pricingQuote = getGuidePricingQuote({ guideDayCount });
-  const paymentDisplayLabel =
-    submission?.paymentDisplayLabel ||
+  const quotedDisplayLabel =
+    submission?.quotedDisplayLabel ||
     formatPaymentDisplayLabel({
-      amount: pricingQuote.totalAmount,
-      currency: pricingQuote.currency,
+      amount: submission?.quotedAmount ?? pricingQuote.totalAmount,
+      currency: submission?.quotedCurrency ?? pricingQuote.currency,
       language,
     });
   const dailyRateLabel = formatDailyRateDisplayLabel({
     amount: pricingQuote.dailyRate,
-    currency: pricingQuote.currency,
+    currency: submission?.quotedCurrency ?? pricingQuote.currency,
     language,
   });
   const applicantName =
@@ -379,7 +375,7 @@ export default function SurveyCompleteClient({
     submission.answers.fullName.trim() !== ""
       ? submission.answers.fullName.trim()
       : "";
-  const paymentStatusLabel = getPaymentStatusLabel(content, paymentStatus);
+  const paymentStatusLabel = getSubmissionStatusLabel(content, submissionStatus);
   const submittedAtText = formatSubmissionTimestamp(
     submission?.submittedAt,
     language,
@@ -416,10 +412,10 @@ export default function SurveyCompleteClient({
     trackEvent("survey_complete_view", {
       language,
       storage_mode: loadMode,
-      payment_status: submission?.paymentStatus ?? "missing",
+      submission_status: submission?.submissionStatus ?? "missing",
       guide_day_count: submission ? Number(guideDayCount) : undefined,
-      amount: submission ? Number(pricingQuote.totalAmount) : undefined,
-      currency: submission ? pricingQuote.currency : undefined,
+      amount: submission ? Number(submission?.quotedAmount ?? pricingQuote.totalAmount) : undefined,
+      currency: submission ? submission?.quotedCurrency ?? pricingQuote.currency : undefined,
     });
   }, [
     guideDayCount,
@@ -527,7 +523,7 @@ export default function SurveyCompleteClient({
             <div className="survey-inline-payment">
               <div className="survey-inline-payment-copy">
                 <span className="survey-card-kicker">{content.paymentReadyLabel}</span>
-                <strong>{paymentDisplayLabel}</strong>
+                <strong>{quotedDisplayLabel}</strong>
                 <p className="survey-payment-text">
                   {content.paymentBreakdown(
                     guideDayCount,
