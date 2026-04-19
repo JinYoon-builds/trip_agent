@@ -9,7 +9,7 @@ import { useAuth } from "./auth-provider";
 
 function inferLanguage(pathname, searchParams) {
   return normalizeSiteLanguage(
-    searchParams.get("lang") || (pathname === "/" ? "zh" : "ko"),
+    searchParams.get("lang") || "en",
   );
 }
 

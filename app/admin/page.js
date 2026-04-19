@@ -1,7 +1,8 @@
+import { BRAND_NAME_GLOBAL } from "../../lib/brand";
 import AdminPageClient from "./page-client";
 
 export const metadata = {
-  title: "刘Unnie Admin",
+  title: `${BRAND_NAME_GLOBAL} Admin`,
 };
 
 export default function AdminPage() {

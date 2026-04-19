@@ -3,6 +3,7 @@ import { Suspense } from "react";
 import Script from "next/script";
 
 import { AuthProvider } from "../components/auth-provider";
+import { BRAND_NAME_GLOBAL } from "../lib/brand";
 import Ga4PageTracker from "./ga4-page-tracker";
 
 const DEFAULT_GTM_ID = "GTM-5GMTXZZV";
@@ -13,13 +14,13 @@ const shouldUseGtm = Boolean(GTM_ID);
 const shouldUseDirectGa = !shouldUseGtm && Boolean(GA_MEASUREMENT_ID);
 
 export const metadata = {
-  title: "刘Unnie",
+  title: BRAND_NAME_GLOBAL,
   description: "Private remote tourism guide matching service for Chinese travelers in Korea.",
 };
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="zh">
+    <html lang="en">
       <body>
         <AuthProvider>
           {shouldUseGtm ? (
