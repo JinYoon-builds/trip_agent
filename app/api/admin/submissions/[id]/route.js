@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 
 import { buildApiErrorResponse } from "../../../../../lib/api-error-response";
 import { createHttpError } from "../../../../../lib/http-errors";
+import { finalizePaidSubmission } from "../../../../../lib/payment-completion";
 import { requireAdmin } from "../../../../../lib/request-auth";
 import {
   getAllowedAdminSubmissionStatuses,
@@ -58,12 +59,19 @@ export async function PATCH(request, context) {
       );
     }
 
-    const updatedSubmission = await updateSurveySubmission(id, {
-      submission_status: payload.submissionStatus,
-    });
+    const result =
+      payload.submissionStatus === "paid"
+        ? await finalizePaidSubmission(submission)
+        : {
+            submission: await updateSurveySubmission(id, {
+              submission_status: payload.submissionStatus,
+            }),
+          };
 
     return NextResponse.json({
-      submission: serializeSubmission(updatedSubmission),
+      submission: serializeSubmission(result.submission),
+      paymentCompletedEmailSent: result.paymentCompletedEmailSent ?? false,
+      paymentCompletedEmailError: result.paymentCompletedEmailError ?? null,
     });
   } catch (error) {
     return buildApiErrorResponse(error, "Failed to update submission.");

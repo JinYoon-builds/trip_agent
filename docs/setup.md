@@ -95,6 +95,31 @@
   - 정적 자산이면 `/manual-payment-qr.png`
   - 외부 CDN이면 절대 URL 사용 가능
 
+## PayPal
+
+### `PAYPAL_ENV`
+
+- 용도: PayPal 서버 API 환경 선택
+- 허용값: `sandbox`, `live`
+- 필수 여부: `ko / en` PayPal 결제를 쓰려면 필수
+
+### `PAYPAL_CLIENT_ID`
+
+- 용도: 서버에서 PayPal Orders API 토큰 발급/주문 생성/캡처 호출에 사용
+- 필수 여부: `ko / en` PayPal 결제를 쓰려면 필수
+
+### `PAYPAL_CLIENT_SECRET`
+
+- 용도: 서버에서 PayPal OAuth 토큰 발급에 사용
+- 필수 여부: `ko / en` PayPal 결제를 쓰려면 필수
+- 주의: 절대 public env로 노출하지 않습니다
+
+### `NEXT_PUBLIC_PAYPAL_CLIENT_ID`
+
+- 용도: 완료 페이지 PayPal JS SDK 로드
+- 필수 여부: `ko / en` PayPal 결제를 쓰려면 필수
+- 주의: PayPal `Client ID`와 동일 값 사용 가능
+
 ## Resend
 
 ### `RESEND_API_KEY`
@@ -124,7 +149,7 @@
 - `NEXT_PUBLIC_SUPABASE_ANON_KEY` 또는 `SUPABASE_ANON_KEY`
 - `SUPABASE_SERVICE_ROLE_KEY`
 
-운영 알림 메일까지 확인하려면 아래도 추가합니다.
+결제 완료 메일까지 확인하려면 아래도 추가합니다.
 
 - `RESEND_API_KEY`
 - `EMAIL_FROM`
@@ -134,6 +159,13 @@
 
 - `NEXT_PUBLIC_MANUAL_PAYMENT_QR_IMAGE`
 
+`ko / en` PayPal 결제까지 로컬에서 보려면 아래도 추가합니다.
+
+- `PAYPAL_ENV`
+- `PAYPAL_CLIENT_ID`
+- `PAYPAL_CLIENT_SECRET`
+- `NEXT_PUBLIC_PAYPAL_CLIENT_ID`
+
 ## 로컬 테스트 체크리스트
 
 1. `npm install`
@@ -142,3 +174,5 @@
 4. Supabase Auth 이메일 인증 설정 확인
 5. `npm run dev`
 6. 회원가입 -> 이메일 인증 -> 로그인 -> 설문 제출 -> 완료 페이지 확인
+7. `zh`: QR 수동 결제 UI 확인
+8. `ko / en`: PayPal 결제 UI 확인

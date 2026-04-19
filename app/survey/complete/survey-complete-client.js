@@ -3,12 +3,14 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 
+import PayPalButton from "../../../components/paypal-button";
 import { trackEvent } from "../../../lib/analytics";
 import { normalizeSiteLanguage } from "../../../lib/language";
 import {
   MANUAL_PAYMENT_METHOD,
   MANUAL_PAYMENT_QR_IMAGE,
 } from "../../../lib/manual-payment";
+import { isPayPalPaymentMethod } from "../../../lib/payment";
 import {
   formatDailyRateDisplayLabel,
   formatPaymentDisplayLabel,
@@ -19,7 +21,11 @@ import {
   readSurveySubmission,
   saveSurveySubmission,
 } from "../../../lib/survey-local-storage";
-import { fetchRemoteSubmission } from "../../../lib/submission-client";
+import {
+  capturePayPalOrderForSubmission,
+  createPayPalOrderForSubmission,
+  fetchRemoteSubmission,
+} from "../../../lib/submission-client";
 
 const completionContent = {
   en: {
@@ -28,37 +34,51 @@ const completionContent = {
     heroKicker: "Request Received",
     heroTitle: "Complete the final payment step",
     heroSubtitle:
-      "Scan the WeChat Pay QR below, transfer the quoted amount, and we will review the payment before sending your guide details by email.",
+      "Complete your secure PayPal checkout below. Once payment is confirmed, we will email your guide details automatically.",
     paidHeroTitle: "Payment completed",
     paidHeroSubtitle:
       "We confirmed your transfer. A local university student guide will contact you through the email you entered within 2 to 3 hours.",
     summaryKicker: "Trip Summary",
     summaryTitle: "Your Trip Details",
     summaryDescription:
-      "Review the details below, then complete the manual payment.",
+      "Review the details below, then complete the PayPal payment.",
     summaryDescriptionPaid:
       "Review your submitted trip details and current payment status below.",
     summaryPillLocal: "Preview",
-    summaryPillServer: "Awaiting Transfer",
+    summaryPillServer: "Awaiting Payment",
     statusKicker: "Status",
     statusTitle: "Current Status",
     statusTextLocal:
       "This survey is temporarily stored only in the current browser. Until the backend flow is fully connected, you can use this state to review the experience.",
     statusTextServer:
-      "This survey has been saved on the server and is now waiting for your manual payment transfer.",
+      "This survey has been saved on the server and is now waiting for your PayPal payment.",
     statusBadgeLocal: "Saved in Browser",
     statusBadgeServer: "Request Received",
     requestKicker: "Submission",
     requestTitle: "Saved Record",
     requestIdLabel: "Saved ID",
     submittedAtLabel: "Submitted At",
-    paymentStatusPending: "Awaiting transfer",
-    paymentStatusCreated: "Transfer submitted",
-    paymentStatusProcessing: "Waiting for manual review",
+    paymentStatusPending: "Awaiting payment",
+    paymentStatusCreated: "Payment started",
+    paymentStatusProcessing: "Completing payment",
     paymentStatusPaid: "Payment completed",
-    paymentReadyLabel: "Manual payment",
+    paymentReadyLabel: "PayPal checkout",
     paymentBreakdown: (guideDayCount, dailyRateLabel) =>
       `${guideDayCount} guide day${guideDayCount > 1 ? "s" : ""} selected · ${dailyRateLabel}`,
+    paypalPaymentTitle: "Pay with PayPal",
+    paypalPaymentDescription:
+      "Use PayPal to pay the quoted amount securely. Your request will be confirmed automatically as soon as the payment capture succeeds.",
+    paypalPaymentSteps: [
+      "Click the PayPal button below.",
+      "Approve the payment in the PayPal checkout window.",
+    ],
+    paypalPaymentNote:
+      "After successful payment, your request status will update automatically on this page.",
+    paypalAmountLabel: "Secure checkout amount",
+    paypalConfigError:
+      "PayPal is not configured yet. Please try again in a moment or contact support.",
+    paypalActionError:
+      "We could not complete the PayPal payment just now. Please try again.",
     manualPaymentTitle: "Pay with WeChat Pay",
     manualPaymentDescription:
       "Open WeChat Pay, scan the QR, and transfer the quoted amount. For faster matching, use the same sender name as the name on this request.",
@@ -73,17 +93,17 @@ const completionContent = {
       "Once the transfer is confirmed, a local university student guide will contact you directly.",
     paymentSuccessTitle: "Payment completed!",
     paymentSuccessText:
-      "We confirmed the transfer. A local university student guide will contact you through the email you entered within 2 to 3 hours.",
+      "We confirmed your PayPal payment. A local university student guide will contact you through the email you entered within 2 to 3 hours.",
     nextTitle: "What Happens Next",
     nextSteps: [
-      "We check the incoming transfer.",
-      "Once the transfer is confirmed, a local university student guide will contact you directly.",
+      "We record your payment automatically.",
+      "A local university student guide will contact you directly within 2 to 3 hours.",
     ],
     noteTitle: "Before You Leave",
     noteTextLocal:
       "Right now the flow only saves the survey locally and moves to the completion page. If browser data is cleared, the saved response disappears too.",
     noteTextServer:
-      "Once the transfer is confirmed, we will send your guide introduction to the email you entered. You do not need to submit anything else unless we contact you.",
+      "Once the PayPal payment is confirmed, we will send your guide introduction to the email you entered. You do not need to submit anything else unless we contact you.",
     homeAction: "Back to home",
     restartAction: "Fill out the survey again",
     missingTitle: "We could not find the saved survey",
@@ -100,37 +120,51 @@ const completionContent = {
     heroKicker: "설문 접수 완료",
     heroTitle: "마지막 결제 단계만 남았습니다",
     heroSubtitle:
-      "아래 위챗페이 QR을 스캔해 안내된 금액을 입금하면, 운영팀이 확인 후 입력한 이메일로 가이드 안내를 보내드립니다.",
+      "아래 PayPal 결제를 완료해 주세요. 결제가 확인되면 가이드 안내가 자동으로 이메일로 발송됩니다.",
     paidHeroTitle: "결제가 완료되었습니다",
     paidHeroSubtitle:
       "입금 확인이 완료되었습니다. 2~3시간 이내에 현지 대학생 가이드가 입력하신 이메일로 연락드릴 예정입니다.",
     summaryKicker: "여행 요약",
     summaryTitle: "입력한 여행 정보",
     summaryDescription:
-      "아래 내용을 확인한 뒤 수동 결제를 진행해 주세요.",
+      "아래 내용을 확인한 뒤 PayPal 결제를 진행해 주세요.",
     summaryDescriptionPaid:
       "입력한 여행 정보와 현재 결제 상태를 아래에서 확인해 주세요.",
     summaryPillLocal: "Preview",
-    summaryPillServer: "입금 확인 대기",
+    summaryPillServer: "결제 대기",
     statusKicker: "Status",
     statusTitle: "현재 상태",
     statusTextLocal:
       "이 설문은 현재 브라우저에만 임시 저장되어 있습니다. 새 설문 흐름이나 백엔드 연결 전까지는 이 상태를 기준으로 UX를 점검할 수 있습니다.",
     statusTextServer:
-      "이 설문은 서버에 정상 접수되었고, 현재 수동 입금 확인을 기다리는 상태입니다.",
+      "이 설문은 서버에 정상 접수되었고, 현재 PayPal 결제를 기다리는 상태입니다.",
     statusBadgeLocal: "브라우저 임시 저장",
     statusBadgeServer: "신청 접수 완료",
     requestKicker: "Submission",
     requestTitle: "접수 정보",
     requestIdLabel: "저장 ID",
     submittedAtLabel: "접수 시각",
-    paymentStatusPending: "입금 확인 대기",
-    paymentStatusCreated: "입금 접수됨",
-    paymentStatusProcessing: "운영팀 확인 중",
+    paymentStatusPending: "결제 대기",
+    paymentStatusCreated: "결제 시작됨",
+    paymentStatusProcessing: "결제 처리 중",
     paymentStatusPaid: "결제 완료",
-    paymentReadyLabel: "수동 결제",
+    paymentReadyLabel: "PayPal 결제",
     paymentBreakdown: (guideDayCount, dailyRateLabel) =>
       `가이드 ${guideDayCount}일 선택 · ${dailyRateLabel}`,
+    paypalPaymentTitle: "PayPal로 결제하기",
+    paypalPaymentDescription:
+      "PayPal에서 안내된 금액을 안전하게 결제해 주세요. 결제가 성공하면 이 요청은 자동으로 결제 완료 처리됩니다.",
+    paypalPaymentSteps: [
+      "아래 PayPal 버튼을 눌러 주세요.",
+      "PayPal 결제창에서 결제를 승인해 주세요.",
+    ],
+    paypalPaymentNote:
+      "결제가 성공하면 이 페이지 상태가 자동으로 결제 완료로 변경됩니다.",
+    paypalAmountLabel: "안전 결제 금액",
+    paypalConfigError:
+      "현재 PayPal 설정을 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.",
+    paypalActionError:
+      "PayPal 결제를 완료하지 못했습니다. 다시 시도해 주세요.",
     manualPaymentTitle: "위챗페이로 결제하기",
     manualPaymentDescription:
       "위챗페이에서 QR을 스캔한 뒤, 이 페이지에 표시된 금액만큼 입금해 주세요. 빠른 확인을 위해 입금자명을 신청자명과 동일하게 맞춰 주세요.",
@@ -145,17 +179,17 @@ const completionContent = {
       "입금이 확인되면 현지 대학생 가이드가 직접 연락드립니다.",
     paymentSuccessTitle: "결제가 완료되었습니다!",
     paymentSuccessText:
-      "입금 확인이 완료되었습니다. 2~3시간 이내에 현지 대학생 가이드가 입력하신 이메일로 연락드릴 예정입니다.",
+      "PayPal 결제가 확인되었습니다. 2~3시간 이내에 현지 대학생 가이드가 입력하신 이메일로 연락드릴 예정입니다.",
     nextTitle: "다음 진행 방식",
     nextSteps: [
-      "운영팀이 입금 내역을 확인합니다.",
-      "입금이 확인되면 현지 대학생 가이드가 직접 연락드립니다.",
+      "결제 정보가 자동으로 기록됩니다.",
+      "2~3시간 이내에 현지 대학생 가이드가 직접 연락드립니다.",
     ],
     noteTitle: "안내 사항",
     noteTextLocal:
       "설문 완료 후 로컬 저장과 완료 페이지 이동까지만 연결되어 있습니다. 브라우저 데이터를 지우면 저장 내용도 함께 사라집니다.",
     noteTextServer:
-      "입금 확인이 끝나면 별도 요청 없이 입력한 이메일로 가이드 안내를 보내드립니다. 추가 확인이 필요한 경우에만 운영팀이 별도로 연락드립니다.",
+      "PayPal 결제가 확인되면 별도 요청 없이 입력한 이메일로 가이드 안내를 보내드립니다. 추가 확인이 필요한 경우에만 운영팀이 별도로 연락드립니다.",
     homeAction: "랜딩으로 돌아가기",
     restartAction: "설문 다시 작성하기",
     missingTitle: "저장된 설문을 찾지 못했습니다",
@@ -287,6 +321,8 @@ export default function SurveyCompleteClient({
   const [submission, setSubmission] = useState(null);
   const [hasLoaded, setHasLoaded] = useState(false);
   const [loadMode, setLoadMode] = useState("idle");
+  const [paymentActionError, setPaymentActionError] = useState("");
+  const [isPayPalProcessing, setIsPayPalProcessing] = useState(false);
   const completeViewKeyRef = useRef("");
 
   useEffect(() => {
@@ -352,12 +388,13 @@ export default function SurveyCompleteClient({
   const content = completionContent[language];
   const isServerSubmission = loadMode === "server";
   const submissionStatus = submission?.submissionStatus ?? "awaiting_transfer";
+  const isPayPalSubmission = isPayPalPaymentMethod(submission?.paymentMethod);
   const isPaid = submissionStatus === "paid";
   const guideDayCount =
     Number.isInteger(Number(submission?.guideDayCount)) && Number(submission?.guideDayCount) > 0
       ? Number(submission.guideDayCount)
       : getGuideDayCountFromAnswers(submission?.answers);
-  const pricingQuote = getGuidePricingQuote({ guideDayCount });
+  const pricingQuote = getGuidePricingQuote({ guideDayCount, language });
   const quotedDisplayLabel =
     submission?.quotedDisplayLabel ||
     formatPaymentDisplayLabel({
@@ -392,9 +429,99 @@ export default function SurveyCompleteClient({
     ? content.noteTextServer
     : content.noteTextLocal;
   const paymentDetailText =
-    isServerSubmission && !isPaid && applicantName
+    isServerSubmission &&
+    !isPaid &&
+    !isPayPalSubmission &&
+    applicantName
       ? `${content.manualPaymentSenderNameLabel}: ${applicantName}`
       : paymentStatusLabel;
+
+  async function handleCreatePayPalOrder() {
+    if (!submission?.id) {
+      throw new Error(content.paypalActionError);
+    }
+
+    setPaymentActionError("");
+    trackEvent("paypal_create_order_attempt", {
+      language,
+      submission_id: submission.id,
+    });
+
+    try {
+      const orderId = await createPayPalOrderForSubmission(submission.id);
+
+      trackEvent("paypal_create_order_success", {
+        language,
+        submission_id: submission.id,
+        order_id: orderId,
+      });
+
+      return orderId;
+    } catch (error) {
+      trackEvent("paypal_create_order_error", {
+        language,
+        submission_id: submission.id,
+        error_message:
+          typeof error?.message === "string" ? error.message : "unknown",
+      });
+      setPaymentActionError(
+        typeof error?.message === "string" && error.message
+          ? error.message
+          : content.paypalActionError,
+      );
+      throw error;
+    }
+  }
+
+  async function handleApprovePayPalOrder(orderId) {
+    if (!submission?.id) {
+      throw new Error(content.paypalActionError);
+    }
+
+    setIsPayPalProcessing(true);
+    setPaymentActionError("");
+    trackEvent("paypal_capture_attempt", {
+      language,
+      submission_id: submission.id,
+      order_id: orderId,
+    });
+
+    try {
+      const updatedSubmission = await capturePayPalOrderForSubmission(
+        submission.id,
+        orderId,
+      );
+      const normalizedSubmission = {
+        ...updatedSubmission,
+        storageMode: "server",
+      };
+
+      setSubmission(normalizedSubmission);
+      saveSurveySubmission(normalizedSubmission);
+      setLoadMode("server");
+      trackEvent("paypal_capture_success", {
+        language,
+        submission_id: normalizedSubmission.id,
+        capture_id: normalizedSubmission.paymentProviderCaptureId,
+      });
+    } catch (error) {
+      trackEvent("paypal_capture_error", {
+        language,
+        submission_id: submission.id,
+        order_id: orderId,
+        error_message:
+          typeof error?.message === "string" ? error.message : "unknown",
+      });
+      setPaymentActionError(
+        typeof error?.message === "string" && error.message
+          ? error.message
+          : content.paypalActionError,
+      );
+      throw error;
+    } finally {
+      setIsPayPalProcessing(false);
+    }
+  }
 
   useEffect(() => {
     if (!hasLoaded) {
@@ -551,49 +678,93 @@ export default function SurveyCompleteClient({
             </div>
 
             {isServerSubmission && !isPaid ? (
-              <div className="survey-payment-shell survey-manual-payment-shell">
-                <div className="survey-manual-payment-layout">
-                  <div className="survey-manual-payment-copy">
-                    <span className="survey-card-kicker">{content.paymentReadyLabel}</span>
-                    <strong>{content.manualPaymentTitle}</strong>
-                    <p className="survey-payment-text">
-                      {content.manualPaymentDescription}
-                    </p>
-                    <div className="survey-manual-payment-steps">
-                      {content.manualPaymentSteps.map((step, index) => (
-                        <div className="survey-manual-payment-step" key={step}>
-                          <span className="survey-manual-payment-step-index">
-                            {String(index + 1).padStart(2, "0")}
-                          </span>
-                          <p>{step}</p>
-                        </div>
-                      ))}
-                    </div>
-                    <p className="survey-payment-helper">
-                      {content.manualPaymentSenderNameHelp}
-                    </p>
-                    <p className="survey-payment-message">
-                      {content.manualPaymentReviewNote}
-                    </p>
-                  </div>
-                  <div className="survey-manual-payment-qr-card">
-                    <span className="survey-manual-payment-method">
-                      {MANUAL_PAYMENT_METHOD}
-                    </span>
-                    <img
-                      alt={`${MANUAL_PAYMENT_METHOD} QR`}
-                      className="survey-manual-payment-qr"
-                      src={MANUAL_PAYMENT_QR_IMAGE}
-                    />
-                    {applicantName ? (
-                      <div className="survey-manual-payment-reference-card">
-                        <span>{content.manualPaymentSenderNameLabel}</span>
-                        <strong>{applicantName}</strong>
+              isPayPalSubmission ? (
+                <div className="survey-payment-shell survey-manual-payment-shell">
+                  <div className="survey-manual-payment-layout">
+                    <div className="survey-manual-payment-copy">
+                      <span className="survey-card-kicker">{content.paymentReadyLabel}</span>
+                      <strong>{content.paypalPaymentTitle}</strong>
+                      <p className="survey-payment-text">
+                        {content.paypalPaymentDescription}
+                      </p>
+                      <div className="survey-manual-payment-steps">
+                        {content.paypalPaymentSteps.map((step, index) => (
+                          <div className="survey-manual-payment-step" key={step}>
+                            <span className="survey-manual-payment-step-index">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
+                            <p>{step}</p>
+                          </div>
+                        ))}
                       </div>
-                    ) : null}
+                      <p className="survey-payment-message">
+                        {content.paypalPaymentNote}
+                      </p>
+                    </div>
+                    <div className="survey-paypal-card">
+                      <div className="survey-paypal-container">
+                        <PayPalButton
+                          amount={Number(submission?.quotedAmount ?? pricingQuote.totalAmount)}
+                          amountLabel={content.paypalAmountLabel}
+                          clientId={process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID}
+                          createOrder={handleCreatePayPalOrder}
+                          currency="USD"
+                          disabled={isPayPalProcessing}
+                          emptyClientIdMessage={content.paypalConfigError}
+                          onApprove={handleApprovePayPalOrder}
+                        />
+                      </div>
+                      {paymentActionError ? (
+                        <p className="survey-paypal-error">{paymentActionError}</p>
+                      ) : null}
+                    </div>
                   </div>
                 </div>
-              </div>
+              ) : (
+                <div className="survey-payment-shell survey-manual-payment-shell">
+                  <div className="survey-manual-payment-layout">
+                    <div className="survey-manual-payment-copy">
+                      <span className="survey-card-kicker">{content.paymentReadyLabel}</span>
+                      <strong>{content.manualPaymentTitle}</strong>
+                      <p className="survey-payment-text">
+                        {content.manualPaymentDescription}
+                      </p>
+                      <div className="survey-manual-payment-steps">
+                        {content.manualPaymentSteps.map((step, index) => (
+                          <div className="survey-manual-payment-step" key={step}>
+                            <span className="survey-manual-payment-step-index">
+                              {String(index + 1).padStart(2, "0")}
+                            </span>
+                            <p>{step}</p>
+                          </div>
+                        ))}
+                      </div>
+                      <p className="survey-payment-helper">
+                        {content.manualPaymentSenderNameHelp}
+                      </p>
+                      <p className="survey-payment-message">
+                        {content.manualPaymentReviewNote}
+                      </p>
+                    </div>
+                    <div className="survey-manual-payment-qr-card">
+                      <span className="survey-manual-payment-method">
+                        {MANUAL_PAYMENT_METHOD}
+                      </span>
+                      <img
+                        alt={`${MANUAL_PAYMENT_METHOD} QR`}
+                        className="survey-manual-payment-qr"
+                        src={MANUAL_PAYMENT_QR_IMAGE}
+                      />
+                      {applicantName ? (
+                        <div className="survey-manual-payment-reference-card">
+                          <span>{content.manualPaymentSenderNameLabel}</span>
+                          <strong>{applicantName}</strong>
+                        </div>
+                      ) : null}
+                    </div>
+                  </div>
+                </div>
+              )
             ) : null}
 
             {isServerSubmission && isPaid ? (

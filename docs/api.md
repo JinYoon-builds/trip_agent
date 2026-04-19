@@ -1,7 +1,7 @@
 # API Reference
 
 이 문서는 현재 구현된 서버 API를 코드 기준으로 정리합니다.  
-현재 운영 기준 인터페이스는 `인증 세션 조회`, `설문 제출/조회/수정`, `admin 조회/상태 변경 API`입니다.
+현재 운영 기준 인터페이스는 `인증 세션 조회`, `설문 제출/조회/수정`, `PayPal 주문/캡처 API`, `admin 조회/상태 변경 API`입니다.
 
 ## 인증
 
@@ -79,10 +79,9 @@
 - payload 유효성 검사
 - `contactEmail` 확인
 - `contactEmailConfirmed === true` 확인
-- `answers.guideDates` 기준 견적 계산
+- `answers.guideDates` + `language` 기준 견적 계산
 - `survey_submissions` row 생성
-- `user_id`, `applicant_name`, `submission_status`, `quoted_*` 저장
-- Resend 설정이 있으면 운영 알림 메일 발송
+- `user_id`, `applicant_name`, `submission_status`, `payment_method`, `quoted_*` 저장
 
 ### 성공 응답
 
@@ -97,10 +96,11 @@
     "answers": {},
     "summary": [],
     "submissionStatus": "awaiting_transfer",
+    "paymentMethod": "paypal",
     "guideDayCount": 2,
-    "quotedAmount": "1080",
-    "quotedCurrency": "CNY",
-    "quotedDisplayLabel": "CNY 1,080",
+    "quotedAmount": "90.00",
+    "quotedCurrency": "USD",
+    "quotedDisplayLabel": "USD 90",
     "emailSentAt": null,
     "emailSendError": null,
     "submittedAt": "2026-04-17T12:00:00.000Z",
@@ -179,10 +179,11 @@
     "answers": {},
     "summary": [],
     "submissionStatus": "awaiting_transfer",
+    "paymentMethod": "paypal",
     "guideDayCount": 2,
-    "quotedAmount": "1080",
-    "quotedCurrency": "CNY",
-    "quotedDisplayLabel": "CNY 1,080",
+    "quotedAmount": "90.00",
+    "quotedCurrency": "USD",
+    "quotedDisplayLabel": "USD 90",
     "emailSentAt": null,
     "emailSendError": null,
     "submittedAt": "2026-04-17T12:00:00.000Z",
@@ -203,7 +204,7 @@
 ### 권한
 
 - 제출자 본인만 가능
-- 현재는 `awaiting_transfer`, `payment_review` 상태만 수정 가능
+- 현재는 `awaiting_transfer` 상태만 수정 가능
 
 ### 요청 본문
 
@@ -214,7 +215,7 @@
 - owner 권한 확인
 - 현재 제출 상태가 수정 가능한 상태인지 검사
 - payload 재검증
-- `answers.guideDates` 기준 견적 재계산
+- `answers.guideDates` + `language` 기준 견적 재계산
 - 기존 row 업데이트
 
 ### 주요 에러
@@ -224,6 +225,74 @@
 - `404`: 제출 없음 또는 접근 권한 없음
 - `409`: 현재 상태에서는 수정 불가
 - `400`: payload 형식 오류
+
+## `POST /api/submissions/[id]/paypal/order`
+
+PayPal 주문을 생성합니다. `ko / en` 제출만 허용합니다.
+
+### 권한
+
+- 제출자 본인 또는 admin
+
+### 서버 동작
+
+- 제출 접근 권한 검사
+- `payment_method = paypal`인지 확인
+- 서버에서 USD 견적 재계산
+- PayPal Orders API로 `intent=CAPTURE` 주문 생성
+- `payment_provider_order_id` 저장
+
+### 성공 응답
+
+```json
+{
+  "orderId": "5O190127TN364715T",
+  "submission": {
+    "id": "uuid",
+    "paymentMethod": "paypal"
+  }
+}
+```
+
+## `POST /api/submissions/[id]/paypal/capture`
+
+PayPal 주문을 캡처하고 제출을 `paid`로 전환합니다.
+
+### 권한
+
+- 제출자 본인 또는 admin
+
+### 요청 본문
+
+```json
+{
+  "orderId": "5O190127TN364715T"
+}
+```
+
+### 서버 동작
+
+- 제출 접근 권한 검사
+- 주문 ID 매칭 확인
+- PayPal Orders API로 캡처 수행
+- 성공 시 `submission_status = paid`
+- `payment_provider_capture_id`, `paid_at` 저장
+- 고객 + 운영팀 결제 완료 메일 발송 시도
+
+### 성공 응답
+
+```json
+{
+  "submission": {
+    "id": "uuid",
+    "submissionStatus": "paid",
+    "paymentMethod": "paypal",
+    "paymentProviderCaptureId": "3C679366HH908993F"
+  },
+  "paymentCompletedEmailSent": true,
+  "paymentCompletedEmailError": null
+}
+```
 
 ## `GET /api/admin/submissions`
 

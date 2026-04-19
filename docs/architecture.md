@@ -3,7 +3,7 @@
 ## 개요
 
 이 앱은 Next.js App Router 기반의 단일 웹앱입니다.  
-사용자는 랜딩에서 설문으로 진입하고, 설문 마지막 제출 직전에 로그인/회원가입을 거친 뒤 제출을 완료합니다. 제출 데이터는 Supabase에 저장되고, 완료 페이지에서는 `WeChat Pay` 수동 입금 안내를 보여줍니다. 운영자는 admin 페이지에서 제출 목록과 상세를 조회합니다.
+사용자는 랜딩에서 설문으로 진입하고, 설문 마지막 제출 직전에 로그인/회원가입을 거친 뒤 제출을 완료합니다. 제출 데이터는 Supabase에 저장되고, 완료 페이지에서는 언어에 따라 `WeChat Pay` 수동 결제 또는 `PayPal` 결제를 보여줍니다. 운영자는 admin 페이지에서 제출 목록과 상세를 조회합니다.
 
 ## 주요 구성 요소
 
@@ -52,6 +52,10 @@
   - 이메일 인증 완료 사용자만 허용
 - `app/api/submissions/[id]/route.js`
   - 제출자 본인 또는 admin의 상세 조회
+- `app/api/submissions/[id]/paypal/order/route.js`
+  - ko/en 제출용 PayPal 주문 생성
+- `app/api/submissions/[id]/paypal/capture/route.js`
+  - ko/en 제출용 PayPal 캡처 및 `paid` 전환
 - `app/api/admin/submissions/route.js`
   - admin 목록 조회
 - `app/api/admin/submissions/[id]/route.js`
@@ -65,6 +69,10 @@
   - 가이드 날짜 수 기준 견적 계산
 - `lib/manual-payment.js`
   - 수동 결제 수단명과 QR 이미지 경로
+- `lib/payment.js`
+  - 언어별 결제 수단 결정
+- `lib/paypal.js`
+  - PayPal 토큰 / 주문 생성 / 주문 캡처
 - `lib/submission-utils.js`
   - 제출 payload 검증
   - summary 정리
@@ -74,7 +82,7 @@
   - Bearer token 또는 Supabase auth cookie 기반 사용자 확인
   - `requireVerifiedUser`, `requireAdmin`, 제출 접근 제어
 - `lib/integration-config.js`
-  - Supabase, Resend, 수동 결제 관련 설정 해석
+  - Supabase, Resend, 수동 결제, PayPal 관련 설정 해석
 - `lib/submission-client.js`
   - `/api/submissions`, `/api/auth/session`, admin 호출 래퍼
 
@@ -120,24 +128,25 @@
 3. 로그인돼 있어도 이메일 인증이 안 됐으면 제출을 막고 auth modal을 다시 엽니다.
 4. `/api/submissions`가 payload를 검증합니다.
 5. 서버가 `guideDates` 기준으로 견적을 계산합니다.
-6. `survey_submissions`에 `submission_status = awaiting_transfer`로 저장합니다.
-7. Resend 설정이 있으면 운영 알림 메일을 보냅니다.
-8. 클라이언트는 생성된 submission id로 완료 페이지를 엽니다.
+6. `survey_submissions`에 언어별 견적과 결제 수단을 함께 저장합니다.
+7. 클라이언트는 생성된 submission id로 완료 페이지를 엽니다.
 
-## 완료 페이지 및 수동 결제 흐름
+## 완료 페이지 및 결제 흐름
 
 1. 완료 페이지는 `id` 쿼리로 제출 데이터를 조회합니다.
 2. 서버는 접근 권한을 검사합니다.
-3. 클라이언트는 여행 요약, 계산된 견적 금액, `WeChat Pay` QR 이미지를 보여줍니다.
-4. QR 이미지는 `NEXT_PUBLIC_MANUAL_PAYMENT_QR_IMAGE`가 있으면 그 값을 사용하고, 없으면 `/manual-payment-qr.png`를 사용합니다.
-5. 현재 완료 페이지는 상태 변경 UI 없이 읽기 전용 안내 화면입니다.
+3. `zh` 제출이면 여행 요약, 계산된 견적 금액, `WeChat Pay` QR 이미지를 보여줍니다.
+4. `ko / en` 제출이면 PayPal JS SDK 버튼을 로드하고, 서버에서 PayPal 주문 생성/캡처를 수행합니다.
+5. `ko / en` 결제가 성공하면 서버가 제출을 `paid`로 바꾸고 완료 메일을 보냅니다.
+6. QR 이미지는 `NEXT_PUBLIC_MANUAL_PAYMENT_QR_IMAGE`가 있으면 그 값을 사용하고, 없으면 `/manual-payment-qr.png`를 사용합니다.
 
-## 운영 알림 메일 흐름
+## 결제 완료 메일 흐름
 
-1. 제출 생성 직후 Resend 설정 유무를 확인합니다.
-2. 설정이 완전하면 운영팀에게 알림 메일을 보냅니다.
-3. 메일 제목에는 견적 금액과 입금자명이 포함됩니다.
-4. 메일 발송 결과는 API 응답에 포함되고, 실패 시 에러 문자열도 함께 반환됩니다.
+1. 제출이 `paid`가 되는 시점에 Resend 설정 유무를 확인합니다.
+2. 설정이 완전하면 고객과 운영팀 모두에게 결제 완료 메일을 보냅니다.
+3. `ko / en`은 PayPal 캡처 성공 시 자동 발송됩니다.
+4. `zh`는 운영자가 상태를 `paid`로 변경할 때 발송됩니다.
+5. 발송 결과는 `survey_submissions.payment_completed_email_*` 필드에 기록됩니다.
 
 ## 운영자 제출 조회/상태 변경 흐름
 
@@ -157,5 +166,5 @@
 ## 현재 구조상 유의사항
 
 - admin 목록/상세 조회와 상태 변경 API가 모두 존재하지만, 상태 이력(audit trail)은 아직 남기지 않습니다.
-- 사용자 수정 가능 여부는 현재 `awaiting_transfer`, `payment_review` 상태 기준으로 판정합니다.
+- 사용자 수정 가능 여부는 현재 `awaiting_transfer` 상태 기준으로 판정합니다.
 - 현재 인증 UI는 공용 로그인 흐름 하나를 공유하며, 관리자 전용 별도 로그인 화면은 없습니다.

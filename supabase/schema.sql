@@ -19,24 +19,38 @@ create table if not exists public.survey_submissions (
   answers jsonb not null,
   summary jsonb not null default '[]'::jsonb,
   submission_status text not null default 'awaiting_transfer',
+  payment_method text not null default 'manual_qr',
+  payment_provider_order_id text,
+  payment_provider_capture_id text,
   guide_day_count integer not null default 1,
   quoted_amount numeric(10,2) not null default 0,
   quoted_currency text not null default 'CNY',
   quoted_display_label text not null default 'CNY 0',
+  paid_at timestamptz,
   email_sent_at timestamptz,
-  email_send_error text
+  email_send_error text,
+  payment_completed_email_lock_at timestamptz,
+  payment_completed_email_sent_at timestamptz,
+  payment_completed_email_error text
 );
 
 alter table public.survey_submissions
   add column if not exists user_id uuid references auth.users(id) on delete set null,
   add column if not exists applicant_name text,
   add column if not exists submission_status text,
+  add column if not exists payment_method text,
+  add column if not exists payment_provider_order_id text,
+  add column if not exists payment_provider_capture_id text,
   add column if not exists guide_day_count integer,
   add column if not exists quoted_amount numeric(10,2),
   add column if not exists quoted_currency text,
   add column if not exists quoted_display_label text,
+  add column if not exists paid_at timestamptz,
   add column if not exists email_sent_at timestamptz,
-  add column if not exists email_send_error text;
+  add column if not exists email_send_error text,
+  add column if not exists payment_completed_email_lock_at timestamptz,
+  add column if not exists payment_completed_email_sent_at timestamptz,
+  add column if not exists payment_completed_email_error text;
 
 update public.survey_submissions
 set language = 'en'
@@ -63,6 +77,13 @@ set guide_day_count = greatest(
   end
 )
 where guide_day_count is null;
+
+update public.survey_submissions
+set payment_method = case
+  when language in ('ko', 'en') then 'paypal'
+  else 'manual_qr'
+end
+where payment_method is null or payment_method = '';
 
 do $$
 begin
@@ -164,6 +185,8 @@ end
 $$;
 
 alter table public.survey_submissions
+  alter column payment_method set default 'manual_qr',
+  alter column payment_method set not null,
   alter column submission_status set default 'awaiting_transfer',
   alter column submission_status set not null,
   alter column guide_day_count set default 1,
@@ -174,6 +197,13 @@ alter table public.survey_submissions
   alter column quoted_currency set not null,
   alter column quoted_display_label set default 'CNY 0',
   alter column quoted_display_label set not null;
+
+alter table public.survey_submissions
+  drop constraint if exists survey_submissions_payment_method_check;
+
+alter table public.survey_submissions
+  add constraint survey_submissions_payment_method_check
+  check (payment_method in ('manual_qr', 'paypal'));
 
 alter table public.survey_submissions
   drop constraint if exists survey_submissions_submission_status_check;
@@ -208,6 +238,14 @@ create index if not exists survey_submissions_user_id_idx
 
 create index if not exists survey_submissions_submission_status_idx
   on public.survey_submissions (submission_status);
+
+create unique index if not exists survey_submissions_payment_provider_order_id_key
+  on public.survey_submissions (payment_provider_order_id)
+  where payment_provider_order_id is not null;
+
+create unique index if not exists survey_submissions_payment_provider_capture_id_key
+  on public.survey_submissions (payment_provider_capture_id)
+  where payment_provider_capture_id is not null;
 
 create index if not exists survey_submissions_created_at_idx
   on public.survey_submissions (created_at desc);

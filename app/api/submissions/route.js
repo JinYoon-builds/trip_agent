@@ -1,12 +1,10 @@
 import { NextResponse } from "next/server";
 
 import { buildApiErrorResponse } from "../../../lib/api-error-response";
-import { isResendConfigured } from "../../../lib/integration-config";
 import {
   requireAuthenticatedUser,
   requireVerifiedUser,
 } from "../../../lib/request-auth";
-import { sendSubmissionReceivedNotification } from "../../../lib/resend";
 import {
   createSubmissionInsert,
   serializeSubmission,
@@ -59,27 +57,12 @@ export async function POST(request) {
       ...createSubmissionInsert(payload),
       user_id: user.id,
     });
-    let emailSent = false;
-    let emailSendError = null;
-
-    if (isResendConfigured()) {
-      try {
-        await sendSubmissionReceivedNotification({ submission });
-        emailSent = true;
-      } catch (error) {
-        console.error(error);
-        emailSendError =
-          typeof error?.message === "string"
-            ? error.message
-            : "Failed to send notification email.";
-      }
-    }
 
     return NextResponse.json(
       {
         submission: serializeSubmission(submission),
-        emailSent,
-        emailSendError,
+        emailSent: false,
+        emailSendError: null,
       },
       { status: 201 },
     );

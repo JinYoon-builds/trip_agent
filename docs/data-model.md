@@ -34,7 +34,7 @@
 
 ## `survey_submissions`
 
-설문 응답, 견적, 수동 입금 추적 상태를 저장합니다.
+설문 응답, 견적, 결제 수단, 결제 완료 추적 상태를 저장합니다.
 
 ### 핵심 컬럼
 
@@ -54,6 +54,12 @@
   - 완료 페이지 및 운영 메일용 요약 배열 JSON
 - `submission_status`
   - 제출 후속 처리 상태
+- `payment_method`
+  - 언어별 결제 수단 (`manual_qr`, `paypal`)
+- `payment_provider_order_id`
+  - PayPal 주문 ID
+- `payment_provider_capture_id`
+  - PayPal 캡처 ID
 - `guide_day_count`
   - 선택된 가이드 일수
 - `quoted_amount`
@@ -62,10 +68,16 @@
   - 현재 견적 통화
 - `quoted_display_label`
   - UI 노출용 문자열
+- `paid_at`
+  - 결제 완료 시각
 - `email_sent_at`
-  - 운영 알림 메일 발송 시간 기록
+  - 레거시 제출 알림 메일 기록 필드
 - `email_send_error`
-  - 메일 발송 실패 메시지
+  - 레거시 제출 알림 메일 실패 메시지
+- `payment_completed_email_sent_at`
+  - 결제 완료 메일 발송 시간
+- `payment_completed_email_error`
+  - 결제 완료 메일 발송 실패 메시지
 - `created_at`
 - `updated_at`
 
@@ -75,7 +87,7 @@
 
 - `awaiting_transfer`
   - 설문 저장 직후 기본 상태
-  - 사용자가 수동 입금을 아직 완료하지 않았거나, 운영팀이 확인하지 않은 상태
+  - 아직 결제가 끝나지 않은 상태
 - `payment_review`
   - 사용자가 입금했다고 알려졌거나 운영팀 확인 중인 상태
 - `paid`
@@ -87,7 +99,7 @@
 
 현재 실제 사용자 플로우에서 가장 중요한 기본 상태는 `awaiting_transfer`입니다.
 
-현재 코드 기준 사용자 수정 가능 여부는 `awaiting_transfer`, `payment_review` 상태로 제한됩니다.
+현재 코드 기준 사용자 수정 가능 여부는 `awaiting_transfer` 상태로 제한됩니다.
 
 ## 견적 관련 필드 의미
 
@@ -98,13 +110,15 @@
 
 ### `quoted_amount`
 
-- 서버가 `answers.guideDates` 기준으로 계산한 총 견적
-- 현재 `lib/pricing.js` 기준 통화는 `CNY`
+- 서버가 `answers.guideDates`와 `language` 기준으로 계산한 총 견적
+- `zh`: `CNY`
+- `ko`, `en`: `USD`
 
 ### `quoted_currency`
 
 - 현재 가격 계산 통화 코드
-- 런타임 기준 `CNY`
+- `zh`: `CNY`
+- `ko`, `en`: `USD`
 
 ### `quoted_display_label`
 
@@ -123,20 +137,17 @@
 - 완료 페이지와 운영 메일에서 바로 보여줄 수 있는 label/value 배열
 - 사용자-facing 요약 스냅샷 역할
 
-## 이전 PayPal 컬럼 정리
+## 결제 관련 감사 필드
 
-현재 스키마는 PayPal 관련 컬럼을 더 이상 사용하지 않습니다.
-
-제거 대상:
-
-- `payment_status`
-- `payment_amount`
-- `payment_currency`
-- `payment_display_label`
-- `paypal_order_id`
-- `paypal_capture_id`
-
-마이그레이션 SQL은 기존 값이 있으면 이를 `submission_status`, `quoted_*`로 옮긴 뒤 구 컬럼을 삭제하도록 작성되어 있습니다.
+- `payment_method`
+  - `zh`는 기본값 `manual_qr`
+  - `ko`, `en`은 기본값 `paypal`
+- `payment_provider_order_id`
+  - PayPal 주문 생성 시 저장
+- `payment_provider_capture_id`
+  - PayPal 캡처 성공 시 저장
+- `paid_at`
+  - 제출이 `paid`로 전이된 시점 저장
 
 ## 인덱스
 
@@ -145,6 +156,8 @@
 - `survey_submissions_contact_email_idx`
 - `survey_submissions_user_id_idx`
 - `survey_submissions_submission_status_idx`
+- `survey_submissions_payment_provider_order_id_key`
+- `survey_submissions_payment_provider_capture_id_key`
 - `survey_submissions_created_at_idx`
 - `profiles_role_idx`
 

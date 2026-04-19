@@ -8,6 +8,7 @@ import AuthButtons from "../../components/auth-buttons";
 import { useAuth } from "../../components/auth-provider";
 import { trackEvent } from "../../lib/analytics";
 import { normalizeSiteLanguage } from "../../lib/language";
+import { getPaymentMethodForLanguage } from "../../lib/payment";
 import {
   formatDailyRateDisplayLabel,
   formatPaymentDisplayLabel,
@@ -28,6 +29,12 @@ const LANGUAGE_LOCALES = {
   en: "en-US",
   ko: "ko-KR",
   zh: "zh-CN",
+};
+
+const DAILY_BUDGET_CURRENCY_BY_LANGUAGE = {
+  en: "USD",
+  ko: "USD",
+  zh: "CNY",
 };
 
 const SURVEY_ANALYTICS_ID = "guide_matching_v1";
@@ -281,13 +288,13 @@ const surveyContent = {
           {
             id: "dailyBudget",
             kind: "range",
-            label: "About how much is your daily budget? (in CNY) *",
-            hint: "Exact amount is not necessary. Move the bar to choose an approximate daily budget in CNY.",
-            unselectedText: "Move the bar to choose your daily budget in CNY",
-            initialValue: 800,
-            min: 200,
-            max: 3000,
-            step: 100,
+            label: "About how much is your daily budget? (in USD) *",
+            hint: "Exact amount is not necessary. Move the bar to choose an approximate daily budget in USD.",
+            unselectedText: "Move the bar to choose your daily budget in USD",
+            initialValue: 200,
+            min: 50,
+            max: 1000,
+            step: 50,
             required: true,
           },
         ],
@@ -494,13 +501,13 @@ const surveyContent = {
           {
             id: "dailyBudget",
             kind: "range",
-            label: "하루 예산은 대략 얼마인가요? (CNY 기준) *",
-            hint: "정확하지 않아도 괜찮아요. 바를 움직여 대략적인 하루 예산을 위안화 기준으로 선택해 주세요.",
+            label: "하루 예산은 대략 얼마인가요? (USD 기준) *",
+            hint: "정확하지 않아도 괜찮아요. 바를 움직여 대략적인 하루 예산을 달러 기준으로 선택해 주세요.",
             unselectedText: "바를 움직여 하루 예산을 선택해 주세요",
-            initialValue: 800,
-            min: 200,
-            max: 3000,
-            step: 100,
+            initialValue: 200,
+            min: 50,
+            max: 1000,
+            step: 50,
             required: true,
           },
         ],
@@ -860,10 +867,13 @@ function formatBudgetAmount(value, language) {
 
   const normalizedLanguage = normalizeSiteLanguage(language);
   const locale = LANGUAGE_LOCALES[normalizedLanguage] ?? LANGUAGE_LOCALES.en;
+  const currency =
+    DAILY_BUDGET_CURRENCY_BY_LANGUAGE[normalizedLanguage] ??
+    DAILY_BUDGET_CURRENCY_BY_LANGUAGE.en;
 
   return new Intl.NumberFormat(locale, {
     style: "currency",
-    currency: "CNY",
+    currency,
     currencyDisplay: "code",
     maximumFractionDigits: 0,
   }).format(numericValue);
@@ -1408,10 +1418,13 @@ export default function SurveyClient({
   const selectedGuideDayCount = selectedGuideDates.length;
   const livePricingQuote =
     selectedGuideDayCount > 0
-      ? getGuidePricingQuote({ guideDayCount: selectedGuideDayCount })
+      ? getGuidePricingQuote({
+          guideDayCount: selectedGuideDayCount,
+          language,
+        })
       : null;
-  const oneDayPricingQuote = getGuidePricingQuote({ guideDayCount: 1 });
-  const twoDayPricingQuote = getGuidePricingQuote({ guideDayCount: 2 });
+  const oneDayPricingQuote = getGuidePricingQuote({ guideDayCount: 1, language });
+  const twoDayPricingQuote = getGuidePricingQuote({ guideDayCount: 2, language });
   const livePaymentDisplayLabel = livePricingQuote
     ? formatPaymentDisplayLabel({
         amount: livePricingQuote.totalAmount,
@@ -1434,7 +1447,7 @@ export default function SurveyClient({
     currency: twoDayPricingQuote.currency,
     language,
   });
-  const threeDayPricingQuote = getGuidePricingQuote({ guideDayCount: 3 });
+  const threeDayPricingQuote = getGuidePricingQuote({ guideDayCount: 3, language });
   const threeDayDailyRateLabel = formatDailyRateDisplayLabel({
     amount: threeDayPricingQuote.dailyRate,
     currency: threeDayPricingQuote.currency,
@@ -1833,6 +1846,7 @@ export default function SurveyClient({
   const runSubmission = async () => {
     const guidePricingQuote = getGuidePricingQuote({
       guideDayCount: getGuideDayCountFromAnswers(answers),
+      language,
     });
 
     trackEvent("survey_submit_attempt", {
@@ -2026,6 +2040,7 @@ export default function SurveyClient({
             currency: guidePricingQuote.currency,
             language,
           }),
+          paymentMethod: getPaymentMethodForLanguage(language),
           submissionStatus: "awaiting_transfer",
           isEditable: true,
           storageMode: "local",
