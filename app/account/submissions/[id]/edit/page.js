@@ -1,9 +1,15 @@
+import { getSiteTitle } from "../../../../../lib/brand";
 import { normalizeSiteLanguage } from "../../../../../lib/language";
 import SurveyClient from "../../../../survey/survey-client";
 
-export const metadata = {
-  title: "刘Unnie Edit Submission",
-};
+export async function generateMetadata({ searchParams }) {
+  const resolvedSearchParams = await searchParams;
+  const initialLanguage = normalizeSiteLanguage(resolvedSearchParams?.lang);
+
+  return {
+    title: getSiteTitle(initialLanguage, "Edit Submission"),
+  };
+}
 
 export default async function EditSubmissionPage({ params, searchParams }) {
   const resolvedParams = await params;

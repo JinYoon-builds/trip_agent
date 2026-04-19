@@ -1,5 +1,15 @@
 import SurveyCompleteClient from "./survey-complete-client";
+import { getSiteTitle } from "../../../lib/brand";
 import { normalizeSiteLanguage } from "../../../lib/language";
+
+export async function generateMetadata({ searchParams }) {
+  const resolvedSearchParams = await searchParams;
+  const initialLanguage = normalizeSiteLanguage(resolvedSearchParams?.lang);
+
+  return {
+    title: getSiteTitle(initialLanguage),
+  };
+}
 
 export default async function SurveyCompletePage({ searchParams }) {
   const resolvedSearchParams = await searchParams;

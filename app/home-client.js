@@ -3,14 +3,16 @@
 import Image from "next/image";
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 import AuthButtons from "../components/auth-buttons";
 import { trackEvent } from "../lib/analytics";
+import { getBrandName, getSiteTitle } from "../lib/brand";
 import { normalizeSiteLanguage } from "../lib/language";
 
 const translations = {
   en: {
-    logo: "刘Unnie",
+    logo: getBrandName("en"),
     announce: "Private guide matching is live",
     titleLine1: "Travel Korea with",
     titleLine2: "your own local guide",
@@ -23,7 +25,7 @@ const translations = {
     statTertiary: "Preference-based 1:1 matching",
   },
   ko: {
-    logo: "刘Unnie",
+    logo: getBrandName("ko"),
     announce: "프라이빗 가이드 매칭 오픈",
     titleLine1: "한국 여행의 즐거움을",
     titleLine2: "나만의 가이드와",
@@ -36,7 +38,7 @@ const translations = {
     statTertiary: "취향 기반 1:1 매칭",
   },
   zh: {
-    logo: "刘Unnie",
+    logo: getBrandName("zh"),
     announce: "私人向导匹配已开启",
     titleLine1: "重新发现",
     titleLine2: "韩国旅行的乐趣",
@@ -63,6 +65,10 @@ export default function HomeClient({ initialLanguage }) {
   const router = useRouter();
   const language = normalizeSiteLanguage(initialLanguage);
   const t = translations[language];
+
+  useEffect(() => {
+    document.title = getSiteTitle(language);
+  }, [language]);
 
   const handleLanguageChange = (nextLanguage) => {
     const normalizedNextLanguage = normalizeSiteLanguage(nextLanguage);

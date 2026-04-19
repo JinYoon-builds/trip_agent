@@ -5,6 +5,7 @@ import { useEffect, useRef, useState } from "react";
 
 import PayPalButton from "../../../components/paypal-button";
 import { trackEvent } from "../../../lib/analytics";
+import { getBrandName, getSiteTitle } from "../../../lib/brand";
 import { normalizeSiteLanguage } from "../../../lib/language";
 import {
   MANUAL_PAYMENT_METHOD,
@@ -29,7 +30,7 @@ import {
 
 const completionContent = {
   en: {
-    brand: "刘Unnie",
+    brand: getBrandName("en"),
     back: "Back to home",
     heroKicker: "Request Received",
     heroTitle: "Complete the final payment step",
@@ -115,7 +116,7 @@ const completionContent = {
       "The saved server record could not be loaded, and no local browser copy was found either. Please finish the setup and try again.",
   },
   ko: {
-    brand: "刘Unnie",
+    brand: getBrandName("ko"),
     back: "랜딩으로 돌아가기",
     heroKicker: "설문 접수 완료",
     heroTitle: "마지막 결제 단계만 남았습니다",
@@ -201,7 +202,7 @@ const completionContent = {
       "현재 서버 저장본을 조회할 수 없고, 브라우저 로컬 저장본도 찾지 못했습니다. 설정을 마친 뒤 다시 시도해 주세요.",
   },
   zh: {
-    brand: "刘Unnie",
+    brand: getBrandName("zh"),
     back: "返回落地页",
     heroKicker: "问卷提交完成",
     heroTitle: "只剩最后一步付款",
@@ -324,6 +325,10 @@ export default function SurveyCompleteClient({
   const [paymentActionError, setPaymentActionError] = useState("");
   const [isPayPalProcessing, setIsPayPalProcessing] = useState(false);
   const completeViewKeyRef = useRef("");
+
+  useEffect(() => {
+    document.title = getSiteTitle(language);
+  }, [language]);
 
   useEffect(() => {
     let isMounted = true;

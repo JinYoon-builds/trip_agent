@@ -7,6 +7,7 @@ import { usePathname, useRouter } from "next/navigation";
 import AuthButtons from "../../components/auth-buttons";
 import { useAuth } from "../../components/auth-provider";
 import { trackEvent } from "../../lib/analytics";
+import { getBrandName, getSiteTitle } from "../../lib/brand";
 import { normalizeSiteLanguage } from "../../lib/language";
 import { getPaymentMethodForLanguage } from "../../lib/payment";
 import {
@@ -89,7 +90,7 @@ const surveyModeCopy = {
 
 const surveyContent = {
   en: {
-    brand: "刘Unnie",
+    brand: getBrandName("en"),
     back: "Back to home",
     title: "All-in-one Travel Service",
     subtitle:
@@ -302,7 +303,7 @@ const surveyContent = {
     ],
   },
   ko: {
-    brand: "刘Unnie",
+    brand: getBrandName("ko"),
     back: "랜딩으로 돌아가기",
     title: "올인원 여행 서비스",
     subtitle:
@@ -515,7 +516,7 @@ const surveyContent = {
     ],
   },
   zh: {
-    brand: "刘Unnie",
+    brand: getBrandName("zh"),
     back: "返回首页",
     title: "一站式旅行服务",
     subtitle:
@@ -1263,6 +1264,10 @@ export default function SurveyClient({
   useEffect(() => {
     setLanguage(normalizeSiteLanguage(initialLanguage));
   }, [initialLanguage]);
+
+  useEffect(() => {
+    document.title = getSiteTitle(language);
+  }, [language]);
 
   useEffect(() => {
     if (mode !== "edit") {
