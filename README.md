@@ -1,63 +1,141 @@
-# 刘Unnie
+# Liu-Unnie / 刘Unnie
 
-중국인 관광객을 위한 현지 대학생 가이드 매칭 MVP입니다.  
-현재는 언어별로 결제 방식이 분기됩니다: `zh`는 `WeChat Pay` 수동 결제, `ko / en`은 `PayPal` 온라인 결제 플로우를 사용합니다.
+Liu-Unnie is a multilingual private local-guide matching MVP for travelers visiting Korea.  
+The public-facing brand is locale-aware:
 
-## Live
+- `en`, `ko`: **Liu-Unnie**
+- `zh`: **刘Unnie**
 
-- Production: `https://liu-unnie.com`
-- Survey: `https://liu-unnie.com/survey?lang=ko`
-- Completion example: `https://liu-unnie.com/survey/complete?id=653381b1-0e16-4736-a6bf-9d9bfd8ab180&lang=ko`
+The product currently supports authenticated survey submission, language-specific guide pricing, locale-specific payment flows, admin review, email notifications, and GA4 funnel analytics.
 
-## Current Flow
+## Live URLs
 
-1. 사용자가 다국어 설문을 작성합니다.
-2. 설문 마지막 제출 직전에는 로그인과 이메일 인증이 필요합니다.
-3. 서버에 설문이 저장되고 언어에 맞는 견적/결제 수단이 결정됩니다.
-4. `zh`는 완료 페이지에서 `WeChat Pay` QR과 입금자명 안내를 확인합니다.
-5. `ko / en`은 완료 페이지에서 `PayPal` 결제를 완료하면 자동으로 `paid` 처리됩니다.
-6. 결제 완료 후 고객과 운영팀 모두에게 완료 메일이 발송되고, 현지 대학생 가이드가 직접 연락합니다.
+- Production: <https://liu-unnie.com>
+- English survey: <https://liu-unnie.com/survey?lang=en>
+- Korean survey: <https://liu-unnie.com/survey?lang=ko>
+- Chinese survey: <https://liu-unnie.com/survey?lang=zh>
+- Admin: <https://liu-unnie.com/admin>
 
-## Screenshot
+## Product Flow
 
-프로덕션 완료 페이지 기준 캡처입니다.
+1. A user opens the site in English by default, or switches to `ko` / `zh`.
+2. The user fills out a 2-step travel survey.
+3. Before final submission, the user must log in and complete email verification.
+4. The server saves the submission in Supabase and calculates guide pricing by selected guide days and language.
+5. Payment flow is selected by language:
+   - `zh`: WeChat Pay QR / manual review flow.
+   - `ko`, `en`: PayPal checkout with USD pricing.
+6. When PayPal capture succeeds, the submission is marked `paid` automatically.
+7. When a payment is completed, customer and operator completion emails are sent through Resend when configured.
+8. Operators can review submissions and update workflow status in the admin console.
 
-<img src="./docs/assets/production-complete-page-qr-fixed.png" alt="刘Unnie completion page" width="360" />
+## Payment and Pricing
+
+### Chinese (`zh`)
+
+- Payment method: WeChat Pay QR manual payment.
+- Currency: `CNY`.
+- Pricing:
+  - 1 day: `CNY 600`
+  - 2 days: `CNY 1,080` total (`10%` discount)
+  - 3+ days: `CNY 480/day` (`20%` discount)
+
+### English / Korean (`en`, `ko`)
+
+- Payment method: PayPal checkout.
+- Currency: `USD`.
+- Pricing:
+  - 1 day: `USD 50`
+  - 2 days: `USD 90` total (`10%` discount)
+  - 3+ days: `USD 40/day` (`20%` discount)
 
 ## What Works
 
-- `ko / zh / en` 언어 전환
-- Supabase Auth 기반 로그인 / 회원가입
-- 회원가입 후 이메일 인증 요구
-- 랜딩 / 설문 상단 공용 인증 모달
-- 로그인 후 헤더 계정 상태 표시
-- Supabase 기반 설문 저장
-- 제출자 소유권 기반 설문 조회 보호
-- 사용자 마이페이지 제출 목록 / 상태 조회
-- 결제 완료 전 제출 수정
-- `customer / admin` 역할 분리
-- 관리자용 제출 목록 / 상세 조회 / 상태 변경 페이지
-- 가이드 날짜 기반 동적 견적 계산
-- 완료 페이지 언어별 결제 분기 (`zh` 수동 QR / `ko,en` PayPal)
-- 결제 완료 시 고객 + 운영팀 알림 메일 발송
-- 프로덕션 배포 완료
+- English default language when `lang` is omitted.
+- `en / ko / zh` language switching.
+- Locale-aware visible brand:
+  - `Liu-Unnie` for English/Korean.
+  - `刘Unnie` for Chinese.
+- Supabase Auth login/signup flow.
+- Email verification gate before survey submission.
+- Shared auth modal across landing, survey, account, and admin pages.
+- Supabase-backed survey submission storage.
+- Owner-protected submission reads.
+- User account page with submission list/status.
+- Edit support for unpaid `awaiting_transfer` submissions.
+- `customer / admin` role split.
+- Admin submission list/detail/status update pages.
+- Language-specific guide quote calculation.
+- `zh` manual QR payment flow.
+- `ko / en` PayPal order/create/capture flow.
+- Automatic `paid` transition on successful PayPal capture.
+- Payment audit fields in `survey_submissions`.
+- Payment-completion notification email path.
+- GA4/GTM event tracking for landing, survey, validation, submission, completion, and PayPal funnel events.
+- Production deployment on Vercel.
 
 ## Stack
 
-- Next.js
+- Next.js App Router
 - React
-- Supabase
+- Supabase Auth + Postgres
+- PayPal Orders API
 - Resend
+- GA4 / Google Tag Manager
 - Vercel
 
-## Local Dev
+## Key Documents
+
+- [Setup Guide](./docs/setup.md) — local/prod environment variables and setup checklist.
+- [Architecture](./docs/architecture.md) — app layers, auth boundaries, survey/payment/admin flows.
+- [API Reference](./docs/api.md) — implemented route contracts and examples.
+- [Data Model](./docs/data-model.md) — Supabase tables, status semantics, quote/payment fields.
+- [Analytics Tracking Reference](./docs/analytics.md) — GA4/GTM events, parameters, and suggested funnel setup.
+- [Next Session Notes](./docs/next-session.md) — historical operating notes and older handoff details.
+
+## Important Files
+
+- App pages: [`app/`](./app)
+- Auth UI/provider: [`components/`](./components)
+- Domain helpers: [`lib/`](./lib)
+- Supabase schema: [`supabase/schema.sql`](./supabase/schema.sql)
+- Payment DB delta used for live rollout: [`supabase/payment-live-delta.sql`](./supabase/payment-live-delta.sql)
+- Public QR assets: [`public/`](./public)
+
+## Local Development
 
 ```bash
 npm install
 npm run dev
 ```
 
-추가로 Supabase SQL Editor에서 [`supabase/schema.sql`](/Users/apple/Documents/100%20Project/trip_agent/supabase/schema.sql)를 먼저 적용해야 인증/권한/제출 스키마가 현재 코드와 맞습니다.
+Local development requires Supabase config in `.env.local`. See [docs/setup.md](./docs/setup.md).
+
+Minimum local env for auth/submissions:
+
+```env
+NEXT_PUBLIC_SUPABASE_URL=
+NEXT_PUBLIC_SUPABASE_ANON_KEY=
+SUPABASE_URL=
+SUPABASE_ANON_KEY=
+SUPABASE_SERVICE_ROLE_KEY=
+```
+
+Optional local env for payment/email/analytics:
+
+```env
+PAYPAL_ENV=sandbox
+PAYPAL_CLIENT_ID=
+PAYPAL_CLIENT_SECRET=
+NEXT_PUBLIC_PAYPAL_CLIENT_ID=
+
+RESEND_API_KEY=
+EMAIL_FROM=
+NOTIFICATION_EMAIL=
+
+NEXT_PUBLIC_GTM_ID=
+NEXT_PUBLIC_GA_MEASUREMENT_ID=
+```
 
 ## Build
 
@@ -65,10 +143,36 @@ npm run dev
 npm run build
 ```
 
+## Deployment Notes
+
+- Production runs on Vercel.
+- Vercel env changes require a redeploy before they affect runtime behavior.
+- Supabase schema changes must be applied separately in Supabase SQL Editor.
+- `NEXT_PUBLIC_GA_MEASUREMENT_ID` must be set and redeployed for direct GA4 tracking.
+- PayPal live checkout requires live credentials:
+  - `PAYPAL_ENV=live`
+  - `PAYPAL_CLIENT_ID=<live client id>`
+  - `PAYPAL_CLIENT_SECRET=<live secret>`
+  - `NEXT_PUBLIC_PAYPAL_CLIENT_ID=<live client id>`
+
+## Operational Follow-ups
+
+Before considering payment/email fully production-verified, run one live end-to-end check:
+
+1. Submit a new `en` or `ko` request.
+2. Complete one PayPal live payment.
+3. Confirm Supabase fields:
+   - `submission_status = paid`
+   - `payment_provider_capture_id` is present
+   - `paid_at` is present
+   - `payment_completed_email_sent_at` is present
+   - `payment_completed_email_error` is `null`
+4. Confirm customer and operator received the completion emails.
+5. Confirm GA4 Realtime shows the relevant `page_view`, survey, and PayPal events.
+
 ## Notes
 
-- `zh`는 `WeChat Pay` 수동 결제, `ko / en`은 `PayPal` 결제로 동작합니다.
-- `survey_submissions`는 설문 원본 `answers`, 운영용 `summary`, 견적 `quoted_*`, 상태 `submission_status`를 함께 저장합니다.
-- 사용자는 자신의 제출 목록과 상태를 마이페이지에서 확인할 수 있고, `awaiting_transfer` 상태 제출만 수정할 수 있습니다.
-- 관리자 페이지에서는 제출 목록/상세 조회와 `payment_review` / `paid` / `matched` / `cancelled` 상태 변경을 지원합니다.
-- Supabase Auth에서는 이메일 인증을 켜 두는 것을 전제로 동작합니다.
+- Chinese payment flow intentionally remains manual QR-based.
+- English/Korean payment flow intentionally uses PayPal and USD.
+- Admin status transitions are constrained by the current workflow in `lib/submission-utils.js`.
+- Existing untracked screenshots in the repository root are visual-reference artifacts, not required runtime assets unless explicitly moved into tracked docs/public paths.
