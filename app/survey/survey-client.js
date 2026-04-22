@@ -1267,6 +1267,7 @@ export default function SurveyClient({
 
   useEffect(() => {
     document.title = getSiteTitle(language);
+    document.documentElement.lang = language;
   }, [language]);
 
   useEffect(() => {

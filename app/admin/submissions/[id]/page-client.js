@@ -5,6 +5,8 @@ import { useParams, useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 
 import { useAuth } from "../../../../components/auth-provider";
+import { getSiteTitle } from "../../../../lib/brand";
+import { normalizeSiteLanguage } from "../../../../lib/language";
 import {
   fetchAdminSubmission,
   updateAdminSubmissionStatus,
@@ -34,6 +36,15 @@ const detailCopy = {
     rawAnswersHint: "Open the raw payload",
     backAction: "Back to admin list",
     errorFallback: "Failed to load submission.",
+    rowLabels: {
+      applicant: "Applicant",
+      email: "Email",
+      status: "Status",
+      quote: "Quote",
+      submittedAt: "Submitted",
+      updatedAt: "Updated",
+      id: "ID",
+    },
   },
   ko: {
     kicker: "관리 상세",
@@ -53,6 +64,15 @@ const detailCopy = {
     rawAnswersHint: "원본 payload 펼치기",
     backAction: "관리 목록으로 돌아가기",
     errorFallback: "제출 상세를 불러오지 못했습니다.",
+    rowLabels: {
+      applicant: "신청자명",
+      email: "이메일",
+      status: "상태",
+      quote: "예상 금액",
+      submittedAt: "접수 시각",
+      updatedAt: "수정 시각",
+      id: "ID",
+    },
   },
   zh: {
     kicker: "管理详情",
@@ -72,6 +92,15 @@ const detailCopy = {
     rawAnswersHint: "展开原始 payload",
     backAction: "返回管理列表",
     errorFallback: "无法加载提交详情。",
+    rowLabels: {
+      applicant: "申请人",
+      email: "邮箱",
+      status: "状态",
+      quote: "报价",
+      submittedAt: "提交时间",
+      updatedAt: "更新时间",
+      id: "ID",
+    },
   },
 };
 
@@ -83,7 +112,7 @@ function formatPrettyJson(value) {
   }
 }
 
-export default function AdminSubmissionDetailClient() {
+export default function AdminSubmissionDetailClient({ initialLanguage = "en" }) {
   const params = useParams();
   const router = useRouter();
   const { isAdmin, isAuthenticated, openAuthModal, status } = useAuth();
@@ -92,9 +121,14 @@ export default function AdminSubmissionDetailClient() {
   const [isSaving, setIsSaving] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
-  const language = "ko";
+  const language = normalizeSiteLanguage(initialLanguage);
   const copy = detailCopy[language];
   const submissionId = typeof params?.id === "string" ? params.id : "";
+
+  useEffect(() => {
+    document.title = getSiteTitle(language, "Admin Submission");
+    document.documentElement.lang = language;
+  }, [language]);
 
   useEffect(() => {
     if (status !== "ready") {
@@ -144,15 +178,15 @@ export default function AdminSubmissionDetailClient() {
 
   const applicantRows = useMemo(
     () => [
-      ["신청자명", submission?.applicantName || "-"],
-      ["이메일", submission?.contactEmail || "-"],
-      ["상태", getSubmissionStatusLabel(submission?.submissionStatus, language)],
-      ["예상 금액", submission?.quotedDisplayLabel || "-"],
-      ["접수 시각", submission?.submittedAt || "-"],
-      ["수정 시각", submission?.updatedAt || "-"],
-      ["ID", submission?.id || "-"],
+      [copy.rowLabels.applicant, submission?.applicantName || "-"],
+      [copy.rowLabels.email, submission?.contactEmail || "-"],
+      [copy.rowLabels.status, getSubmissionStatusLabel(submission?.submissionStatus, language)],
+      [copy.rowLabels.quote, submission?.quotedDisplayLabel || "-"],
+      [copy.rowLabels.submittedAt, submission?.submittedAt || "-"],
+      [copy.rowLabels.updatedAt, submission?.updatedAt || "-"],
+      [copy.rowLabels.id, submission?.id || "-"],
     ],
-    [language, submission],
+    [copy.rowLabels, language, submission],
   );
   const summaryRows = useMemo(
     () => (Array.isArray(submission?.summary) ? submission.summary : []),
@@ -192,7 +226,7 @@ export default function AdminSubmissionDetailClient() {
             <h1>{copy.title}</h1>
             <p>{copy.subtitle}</p>
           </div>
-          <Link className="admin-home-link" href="/admin">
+          <Link className="admin-home-link" href={`/admin?lang=${language}`}>
             {copy.backAction}
           </Link>
         </div>

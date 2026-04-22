@@ -11,7 +11,7 @@ const GTM_ID = process.env.NEXT_PUBLIC_GTM_ID?.trim() || DEFAULT_GTM_ID;
 const GA_MEASUREMENT_ID =
   process.env.NEXT_PUBLIC_GA_MEASUREMENT_ID?.trim() ?? "";
 const shouldUseGtm = Boolean(GTM_ID);
-const shouldUseDirectGa = !shouldUseGtm && Boolean(GA_MEASUREMENT_ID);
+const shouldUseDirectGa = Boolean(GA_MEASUREMENT_ID);
 
 export const metadata = {
   title: BRAND_NAME_GLOBAL,
@@ -66,6 +66,17 @@ export default function RootLayout({ children }) {
               <Ga4PageTracker />
             </Suspense>
           ) : null}
+          <Script id="query-lang-html-attr" strategy="beforeInteractive">
+            {`
+              (function() {
+                try {
+                  var lang = new URLSearchParams(window.location.search).get('lang');
+                  document.documentElement.lang =
+                    lang === 'zh' || lang === 'ko' ? lang : 'en';
+                } catch (error) {}
+              })();
+            `}
+          </Script>
           {children}
         </AuthProvider>
       </body>

@@ -5,6 +5,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "../../components/auth-provider";
+import { getSiteTitle } from "../../lib/brand";
 import { normalizeSiteLanguage } from "../../lib/language";
 import { listSurveySubmissions } from "../../lib/survey-local-storage";
 import { fetchRemoteSubmissions } from "../../lib/submission-client";
@@ -120,6 +121,11 @@ export default function AccountPageClient({ initialLanguage }) {
   const [errorMessage, setErrorMessage] = useState("");
   const language = normalizeSiteLanguage(initialLanguage);
   const copy = accountCopy[language];
+
+  useEffect(() => {
+    document.title = getSiteTitle(language, "Account");
+    document.documentElement.lang = language;
+  }, [language]);
 
   useEffect(() => {
     if (status !== "ready") {

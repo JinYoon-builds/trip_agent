@@ -5,6 +5,8 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 
 import { useAuth } from "../../components/auth-provider";
+import { getSiteTitle } from "../../lib/brand";
+import { normalizeSiteLanguage } from "../../lib/language";
 import { getSubmissionStatusLabel } from "../../lib/submission-status";
 import { getCurrentAccessToken } from "../../lib/supabase-browser";
 
@@ -73,12 +75,73 @@ function getApplicantName(submission) {
   return summaryName || "-";
 }
 
-export default function AdminPageClient() {
+const adminCopy = {
+  en: {
+    kicker: "Admin Console",
+    title: "Guide matching requests",
+    backHome: "Back to home",
+    loginTitle: "Login required",
+    loginText: "Use the shared login modal to continue to the admin console.",
+    forbiddenTitle: "Admin access only",
+    forbiddenText: "This account does not have administrator access.",
+    totalLabel: "Total submissions",
+    paidLabel: "Paid",
+    awaitingLabel: "Awaiting payment",
+    loading: "Loading submissions...",
+    applicantLabel: "Applicant",
+    emailLabel: "Email",
+    statusLabel: "Status",
+    submittedLabel: "Submitted",
+  },
+  ko: {
+    kicker: "Admin Console",
+    title: "Guide matching requests",
+    backHome: "Back to home",
+    loginTitle: "Login required",
+    loginText: "Use the shared login modal to continue to the admin console.",
+    forbiddenTitle: "Admin access only",
+    forbiddenText: "This account does not have administrator access.",
+    totalLabel: "Total submissions",
+    paidLabel: "Paid",
+    awaitingLabel: "Awaiting payment",
+    loading: "Loading submissions...",
+    applicantLabel: "Applicant",
+    emailLabel: "Email",
+    statusLabel: "Status",
+    submittedLabel: "Submitted",
+  },
+  zh: {
+    kicker: "Admin Console",
+    title: "Guide matching requests",
+    backHome: "Back to home",
+    loginTitle: "Login required",
+    loginText: "Use the shared login modal to continue to the admin console.",
+    forbiddenTitle: "Admin access only",
+    forbiddenText: "This account does not have administrator access.",
+    totalLabel: "Total submissions",
+    paidLabel: "Paid",
+    awaitingLabel: "Awaiting payment",
+    loading: "Loading submissions...",
+    applicantLabel: "Applicant",
+    emailLabel: "Email",
+    statusLabel: "Status",
+    submittedLabel: "Submitted",
+  },
+};
+
+export default function AdminPageClient({ initialLanguage = "en" }) {
   const router = useRouter();
   const { isAdmin, isAuthenticated, openAuthModal, profile, status } = useAuth();
   const [submissions, setSubmissions] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState("");
+  const language = normalizeSiteLanguage(initialLanguage);
+  const copy = adminCopy[language];
+
+  useEffect(() => {
+    document.title = getSiteTitle(language, "Admin");
+    document.documentElement.lang = language;
+  }, [language]);
 
   useEffect(() => {
     if (status !== "ready") {
@@ -143,26 +206,26 @@ export default function AdminPageClient() {
       <section className="admin-shell">
         <div className="admin-header">
           <div>
-            <span className="admin-kicker">Admin Console</span>
-            <h1>Guide matching requests</h1>
+            <span className="admin-kicker">{copy.kicker}</span>
+            <h1>{copy.title}</h1>
             <p>{profile?.email || ""}</p>
           </div>
-          <Link className="admin-home-link" href="/">
-            Back to home
+          <Link className="admin-home-link" href={`/?lang=${language}`}>
+            {copy.backHome}
           </Link>
         </div>
 
         {!isAuthenticated ? (
           <div className="admin-empty-card">
-            <h2>Login required</h2>
-            <p>Use the shared login modal to continue to the admin console.</p>
+            <h2>{copy.loginTitle}</h2>
+            <p>{copy.loginText}</p>
           </div>
         ) : null}
 
         {isAuthenticated && !isAdmin ? (
           <div className="admin-empty-card">
-            <h2>Admin access only</h2>
-            <p>This account does not have administrator access.</p>
+            <h2>{copy.forbiddenTitle}</h2>
+            <p>{copy.forbiddenText}</p>
           </div>
         ) : null}
 
@@ -170,50 +233,50 @@ export default function AdminPageClient() {
           <>
             <div className="admin-summary-grid">
               <div className="admin-summary-card">
-                <span>Total submissions</span>
+                <span>{copy.totalLabel}</span>
                 <strong>{summary.total}</strong>
               </div>
               <div className="admin-summary-card">
-                <span>Paid</span>
+                <span>{copy.paidLabel}</span>
                 <strong>{summary.paid}</strong>
               </div>
               <div className="admin-summary-card">
-                <span>Awaiting transfer</span>
+                <span>{copy.awaitingLabel}</span>
                 <strong>{summary.awaitingTransfer}</strong>
               </div>
             </div>
 
             <div className="admin-table-card">
-              {isLoading ? <p>Loading submissions...</p> : null}
+              {isLoading ? <p>{copy.loading}</p> : null}
               {errorMessage ? <p className="admin-error">{errorMessage}</p> : null}
               {!isLoading && !errorMessage ? (
                 <div className="admin-table">
                   <div className="admin-table-head">
-                    <span>Applicant</span>
-                    <span>Email</span>
-                    <span>Status</span>
-                    <span>Submitted</span>
+                    <span>{copy.applicantLabel}</span>
+                    <span>{copy.emailLabel}</span>
+                    <span>{copy.statusLabel}</span>
+                    <span>{copy.submittedLabel}</span>
                   </div>
                   {submissions.map((submission) => (
                     <Link
                       className="admin-table-row interactive"
-                      href={`/admin/submissions/${submission.id}`}
+                      href={`/admin/submissions/${submission.id}?lang=${language}`}
                       key={submission.id}
                     >
                       <div className="admin-table-cell">
-                        <span className="admin-table-label">Applicant</span>
+                        <span className="admin-table-label">{copy.applicantLabel}</span>
                         <strong>{getApplicantName(submission)}</strong>
                       </div>
                       <div className="admin-table-cell">
-                        <span className="admin-table-label">Email</span>
+                        <span className="admin-table-label">{copy.emailLabel}</span>
                         <strong>{submission.contactEmail}</strong>
                       </div>
                       <div className="admin-table-cell">
-                        <span className="admin-table-label">Status</span>
-                        <strong>{getSubmissionStatusLabel(submission.submissionStatus, "ko")}</strong>
+                        <span className="admin-table-label">{copy.statusLabel}</span>
+                        <strong>{getSubmissionStatusLabel(submission.submissionStatus, language)}</strong>
                       </div>
                       <div className="admin-table-cell">
-                        <span className="admin-table-label">Submitted</span>
+                        <span className="admin-table-label">{copy.submittedLabel}</span>
                         <strong>{formatAdminSubmittedAt(submission.submittedAt)}</strong>
                       </div>
                     </Link>

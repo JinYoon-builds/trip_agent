@@ -68,6 +68,7 @@ export default function HomeClient({ initialLanguage }) {
 
   useEffect(() => {
     document.title = getSiteTitle(language);
+    document.documentElement.lang = language;
   }, [language]);
 
   const handleLanguageChange = (nextLanguage) => {
