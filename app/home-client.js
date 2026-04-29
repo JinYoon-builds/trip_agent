@@ -14,9 +14,10 @@ const translations = {
   en: {
     logo: getBrandName("en"),
     announce: "Private guide matching is live",
-    titleLine1: "Travel Korea with",
-    titleLine2: "your own local guide",
-    titleLine3: "and make the whole trip feel personal",
+    titleLine1: "Travel like",
+    titleLine2: "a local,",
+    titleLine3: "not a tourist",
+    subtitle: "Travel Korea with\nyour own local guide\nand make the whole trip feel personal",
     description:
       "Local university students and travel specialists in Korea\nmatch you with a private guide based on your trip goals,\ntravel style, budget, and who you are traveling with.",
     primaryButton: "Get matched with the right guide for my trip",
@@ -131,8 +132,10 @@ export default function HomeClient({ initialLanguage }) {
           <h1>
             <span>{t.titleLine1}</span>
             <span className="accent">{t.titleLine2}</span>
-            <span>{t.titleLine3}</span>
+            {t.titleLine3 ? <span>{t.titleLine3}</span> : null}
           </h1>
+
+          {t.subtitle ? <p className="hero-subtitle">{t.subtitle}</p> : null}
 
           <p>{t.description}</p>
 
